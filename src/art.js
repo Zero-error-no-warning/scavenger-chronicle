@@ -19,7 +19,7 @@ export function weaponArt(item={visual:'broom'},{held=false}={}) {
   // Measured grip positions keep a held tool attached while its size changes.
   const grips={broom:.39,knife:.73,pipe:.54,axe:.65,umbrella:.74,shovel:.45};
   const gripX={broom:.57,knife:.50,pipe:.56,axe:.61,umbrella:.50,shovel:.54};
-  const sizes={broom:.8,knife:.42,pipe:.78,axe:.62,umbrella:.78,shovel:.85};
+  const sizes={broom:.65,knife:.42,pipe:.78,axe:.62,umbrella:.78,shovel:.70};
   const size=sizes[item.visual]||.8,long=item.modifiers?.includes('long')?1.12:1;
   const height=size*long*100,top=68-(grips[item.visual]||.5)*height;
   return atlas('weapons',index%3,Math.floor(index/3),3,2,held?'held-weapon':'item-art',held?'':item.name||'武器',held?`height:${height}%;width:${height}%;top:${top}%;left:${88-(gripX[item.visual]||.5)*height}%;`:'');
