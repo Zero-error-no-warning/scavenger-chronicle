@@ -49,3 +49,5 @@ button.ability:hover{background:#adc3a31c;transform:none;border-color:#9cad88}
   .survivor .ability .icon{display:none}.survivor .ability span{margin:0}.survivor .weapon-summary{padding:6px 0}
   .survivor .weapon-summary span{line-height:1.6}.survivor .pack-weight{font-size:8px}
 }
+
+.action-help-blocked{padding:8px 10px;background:#efd9c4;color:#934f3c;border-radius:6px;font-size:10px}.ability-tooltip .ability-sources small{line-height:1.6}.ability-tooltip .ability-sources span{min-width:0;overflow-wrap:anywhere}

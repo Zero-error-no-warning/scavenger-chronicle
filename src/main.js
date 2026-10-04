@@ -6,11 +6,12 @@ import { icon, character, scenery, weaponArt, escapeHTML as e } from './art.js';
 import { loadGame, saveGame, parseSave } from './storage.js';
 import { renderMap } from './map.js';
 import { abilityHelp, abilityNames } from './ability-help.js';
+import { actionHelp, actionHelpActions } from './action-help.js';
 const $=s=>document.querySelector(s);
 let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false;
 try {state=loadGame()||world.newGame();}catch(err){state=world.newGame();saveError=err.message;}
 const app=$('#app'),dialog=$('#dialog');
-const button=(action,label,{cls='',disabled=false,value='',title=''}={})=>`<button class="${cls}" data-action="${action}" data-value="${e(value)}" ${disabled?'disabled':''} ${title?`title="${e(title)}"`:''}>${label}</button>`;
+const button=(action,label,{cls='',disabled=false,value='',title=''}={})=>`<button class="${cls}" data-action="${action}" data-value="${e(value)}" ${actionHelpActions.has(action)?`data-help-action="${action}" aria-describedby="ability-tooltip"`: ''} ${disabled?'disabled':''} ${title&&!actionHelpActions.has(action)?`title="${e(title)}"`:title&&cls.includes('icon-button')?`aria-label="${e(title)}"`:''}>${label}</button>`;
 function toast(text) {$('#toast').textContent=text;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3500);}
 function persist() {try{saveGame(state);if(saveError)saveError='';}catch{saveError='自動保存できません。メニューからセーブを書き出してください。';}}
 function tone(type='tap') {
@@ -127,14 +128,14 @@ function render() {
   else if(tab==='inventory'){main=inventoryMain();controls=inventoryControls();}
   else if(tab==='journal'){main=journalMain();controls=exploreControls();}
   else {main=exploreMain();controls=exploreControls();}
-  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.1.1 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'この行動列で実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
+  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.1.2 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'この行動列で実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
 }
 function openDialog(title,body) {
   dialog.innerHTML=`<div class="dialog-header"><h2>${title}</h2>${button('closeDialog',icon('close'),{cls:'icon-button',title:'閉じる'})}</div><div class="dialog-body">${body}</div>`;
   if(!dialog.open)dialog.showModal();
 }
 function help() {
-  openDialog('この世界の歩き方',`<p>周辺を見渡す → 場所を探索 → 装備と資源を持ち帰る → 移動拠点を育てる。地図で道路のつながった、光る施設を選ぶと徒歩移動します。</p><h3>４つの能力</h3><table><tr><th>能力</th><th>戦闘</th><th>探索</th></tr><tr><td>知覚</td><td>敵の予定を公開する枚数</td><td>良い発見の確率</td></tr><tr><td>判断</td><td>引く手札の枚数</td><td>見つける探索箇所数</td></tr><tr><td>行動</td><td>実行できるカード枚数</td><td>調べられる回数</td></tr><tr><td>実効</td><td>攻撃の６面ダイス数</td><td>何かが見つかる確率</td></tr></table><p>頭HP→知覚、頭ST→判断、体HP→行動、体ST→実効。現在値÷最大値で比例減少し、切り上げ。知覚は最低０、ほかは最低１。</p><h3>行動列を組む</h3><p>相手は先に計画を決めます。知覚に応じて予定の先頭を公開。手札をタップした順に自分の計画を組み、実行を押します。同じ順番のカードは同時扱いで、移動・回復・防御の後、攻撃を解決します。</p><p>射程外の攻撃もSTを消費します。防御は同じ行動枠だけ有効。途中でSTが不足した行動は不発になります。使えるカードがないときは、カードを選ばず「このラウンドは待機」で次へ進めます（相手は行動します）。判断・行動・知覚はラウンド開始時、実効は各行動のST消費前に確定します。</p><h3>ダメージ</h3><p class="formula">HP = [max(0, 鋭さ − 硬さ) + 重さ ÷ 柔らかさ] × 出目<br>ST = [重さ ÷ 柔らかさ] × 出目</p><p>柔らかさは最低１。出目６は頭、それ以外は体。その部位の防具で計算します。体HPからあふれた分は頭HPへ。STの超過分は転送しません。頭HPが０で死亡。体HPとSTが０でも死亡しません。</p><p>防御はダメージを半減、渾身の一撃は1.4倍。例：鋭さ０、重さ２、柔らかさ２で［３・６］なら、体HP−３・頭HP−６（STもそれぞれ−３・−６）。</p><h3>生き残るコツ</h3><p>息を整える／頭を冷やすカードでSTを回復。頭の傷は医療品で手当て。拠点で食料と水を使って眠ると回復します。空腹・渇き80%以上では時間経過でSTが減ります。</p><p>エンジンを修理し、燃料を３つ集めると新しい街へ進めます。１つの装備に修飾子が複数つくことがあります。各修飾子に長所と短所があり、効果を合算します。</p>`);
+  openDialog('この世界の歩き方',`<p>操作ボタンにマウスを重ねると、効果・消費・関連する能力が表示されます。スマホではボタンを長押しすると説明を開けます。</p><p>周辺を見渡す → 場所を探索 → 装備と資源を持ち帰る → 移動拠点を育てる。地図で道路のつながった、光る施設を選ぶと徒歩移動します。</p><h3>４つの能力</h3><table><tr><th>能力</th><th>戦闘</th><th>探索</th></tr><tr><td>知覚</td><td>敵の予定を公開する枚数</td><td>良い発見の確率</td></tr><tr><td>判断</td><td>引く手札の枚数</td><td>見つける探索箇所数</td></tr><tr><td>行動</td><td>実行できるカード枚数</td><td>調べられる回数</td></tr><tr><td>実効</td><td>攻撃の６面ダイス数</td><td>何かが見つかる確率</td></tr></table><p>頭HP→知覚、頭ST→判断、体HP→行動、体ST→実効。現在値÷最大値で比例減少し、切り上げ。知覚は最低０、ほかは最低１。</p><h3>行動列を組む</h3><p>相手は先に計画を決めます。知覚に応じて予定の先頭を公開。手札をタップした順に自分の計画を組み、実行を押します。同じ順番のカードは同時扱いで、移動・回復・防御の後、攻撃を解決します。</p><p>射程外の攻撃もSTを消費します。防御は同じ行動枠だけ有効。途中でSTが不足した行動は不発になります。使えるカードがないときは、カードを選ばず「このラウンドは待機」で次へ進めます（相手は行動します）。判断・行動・知覚はラウンド開始時、実効は各行動のST消費前に確定します。</p><h3>ダメージ</h3><p class="formula">HP = [max(0, 鋭さ − 硬さ) + 重さ ÷ 柔らかさ] × 出目<br>ST = [重さ ÷ 柔らかさ] × 出目</p><p>柔らかさは最低１。出目６は頭、それ以外は体。その部位の防具で計算します。体HPからあふれた分は頭HPへ。STの超過分は転送しません。頭HPが０で死亡。体HPとSTが０でも死亡しません。</p><p>防御はダメージを半減、渾身の一撃は1.4倍。例：鋭さ０、重さ２、柔らかさ２で［３・６］なら、体HP−３・頭HP−６（STもそれぞれ−３・−６）。</p><h3>生き残るコツ</h3><p>息を整える／頭を冷やすカードでSTを回復。頭の傷は医療品で手当て。拠点で食料と水を使って眠ると回復します。空腹・渇き80%以上では時間経過でSTが減ります。</p><p>エンジンを修理し、燃料を３つ集めると新しい街へ進めます。１つの装備に修飾子が複数つくことがあります。各修飾子に長所と短所があり、効果を合算します。</p>`);
 }
 function menu() {
   openDialog('旅のセーブ',`<p>行動ごとに自動保存。再読み込みしても同じ手札・敵の予定から再開します。</p>${saveError?`<p class="error">${e(saveError)}</p>`:''}<div class="menu-actions">${button('exportSave',`${icon('save')}セーブを書き出す`,{cls:'primary full'})}<label class="file-button">${icon('bag')}セーブを読み込む<input id="import-save" type="file" accept=".json,application/json"></label>${button('confirmNew','最初から始める',{cls:'full danger-button'})}</div><p class="hint">旧版HTMLのセーブは使えません。新規開始・読み込みでは現在のセーブを置き換えます。</p>`);
@@ -149,7 +150,9 @@ async function playRound(pass=false) {
   frame=null;playing=false;render();
 }
 async function handleAction(event) {
-  const btn=event.target.closest('[data-action]');if(!btn||btn.disabled||btn.getAttribute('aria-disabled')==='true')return;
+  const btn=event.target.closest('[data-action]');
+  if(blockedHelpClick?.trigger===btn&&Date.now()<blockedHelpClick.until){event.preventDefault();blockedHelpClick=null;return;}
+  if(!btn||btn.disabled||btn.getAttribute('aria-disabled')==='true')return;
   if(btn.dataset.action==='explain'){toggleAbilityTooltip(btn);return;}
   hideAbilityTooltip();
   const {action,value}=btn.dataset;
@@ -196,7 +199,8 @@ async function handleAction(event) {
 }
 const abilityTooltip=document.createElement('div');
 abilityTooltip.id='ability-tooltip';abilityTooltip.className='ability-tooltip';abilityTooltip.setAttribute('role','tooltip');abilityTooltip.hidden=true;document.body.append(abilityTooltip);
-let tooltipTrigger=null,tooltipPinned=false;
+let tooltipTrigger=null,tooltipPinned=false,holdTimer=null,blockedHelpClick=null;
+const helpSelector='[data-ability],[data-help-action]';
 function hideAbilityTooltip(){abilityTooltip.hidden=true;tooltipTrigger=null;tooltipPinned=false;}
 function showAbilityTooltip(trigger){
   const key=trigger.dataset.ability,context=trigger.dataset.context,b=shownBattle(),actual=state.combat,ex=state.exploration;
@@ -204,17 +208,33 @@ function showAbilityTooltip(trigger){
   if(context==='enemy')actor=b.enemy;
   if(context==='round'){actor=actual.limitActor||actual.player;options={battle:true,frozen:true,missingSnapshot:!actual.limitActor,fixedValue:actual.limits[key]};}
   if(context==='exploration'&&ex){actor=ex.abilityActor||playerActor(state);options={battle:false,frozen:true,missingSnapshot:!ex.abilityActor,fixedValue:ex.stats?.[key],remaining:key==='action'?ex.remaining:null};}
-  abilityTooltip.innerHTML=abilityHelp(actor,key,options);abilityTooltip.hidden=false;tooltipTrigger=trigger;
+  const html=key?abilityHelp(actor,key,options):actionHelp(state,trigger.dataset.helpAction,trigger.dataset.value,{driving});
+  if(!html){hideAbilityTooltip();return;}
+  abilityTooltip.innerHTML=html;abilityTooltip.hidden=false;tooltipTrigger=trigger;
   const r=trigger.getBoundingClientRect(),width=Math.min(326,innerWidth-24);abilityTooltip.style.width=`${width}px`;
   const height=abilityTooltip.offsetHeight,left=Math.max(12,Math.min(r.left,innerWidth-width-12)),top=r.bottom+8+height<=innerHeight-12?r.bottom+8:Math.max(12,r.top-height-8);
   abilityTooltip.style.left=`${left}px`;abilityTooltip.style.top=`${top}px`;
 }
 function toggleAbilityTooltip(trigger){if(tooltipPinned&&tooltipTrigger===trigger){hideAbilityTooltip();return;}showAbilityTooltip(trigger);tooltipPinned=true;}
-document.addEventListener('pointerover',event=>{const trigger=event.target.closest('[data-ability]');if(trigger&&!tooltipPinned&&trigger!==tooltipTrigger)showAbilityTooltip(trigger);});
-document.addEventListener('pointerout',event=>{if(!tooltipPinned&&event.target.closest('[data-ability]')&&!event.relatedTarget?.closest?.('[data-ability]'))hideAbilityTooltip();});
-document.addEventListener('focusin',event=>{const trigger=event.target.closest('[data-ability]');if(trigger&&!tooltipPinned)showAbilityTooltip(trigger);});
-document.addEventListener('focusout',event=>{if(!tooltipPinned&&event.target.closest('[data-ability]'))hideAbilityTooltip();});
-document.addEventListener('click',event=>{if(!event.target.closest('[data-ability],#ability-tooltip'))hideAbilityTooltip();});
+document.addEventListener('pointerover',event=>{if(event.pointerType==='touch')return;const trigger=event.target.closest(helpSelector);if(trigger&&!tooltipPinned&&trigger!==tooltipTrigger)showAbilityTooltip(trigger);});
+document.addEventListener('pointerout',event=>{if(!tooltipPinned&&event.target.closest(helpSelector)&&!event.relatedTarget?.closest?.(helpSelector))hideAbilityTooltip();});
+document.addEventListener('focusin',event=>{const trigger=event.target.closest(helpSelector);if(trigger&&!tooltipPinned)showAbilityTooltip(trigger);});
+document.addEventListener('focusout',event=>{if(!tooltipPinned&&event.target.closest(helpSelector))hideAbilityTooltip();});
+document.addEventListener('click',event=>{if(!event.target.closest('[data-ability],[data-help-action],#ability-tooltip'))hideAbilityTooltip();});
+document.addEventListener('pointerdown',event=>{
+  clearTimeout(holdTimer);
+  const trigger=event.target.closest('[data-help-action]');if(event.pointerType!=='touch'||!trigger)return;
+  const startX=event.clientX,startY=event.clientY;
+  const cancelOnMove=move=>{if(Math.hypot(move.clientX-startX,move.clientY-startY)>8)clearTimeout(holdTimer);};
+  document.addEventListener('pointermove',cancelOnMove);
+  const finishHold=()=>{
+    clearTimeout(holdTimer);document.removeEventListener('pointermove',cancelOnMove);
+    document.removeEventListener('pointerup',finishHold);document.removeEventListener('pointercancel',finishHold);
+    if(blockedHelpClick?.trigger===trigger)blockedHelpClick.until=Date.now()+1000;
+  };
+  document.addEventListener('pointerup',finishHold);document.addEventListener('pointercancel',finishHold);
+  holdTimer=setTimeout(()=>{showAbilityTooltip(trigger);tooltipPinned=true;blockedHelpClick={trigger,until:Date.now()+2000};},500);
+});
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape')hideAbilityTooltip();
   if(['Enter',' '].includes(event.key)&&event.target.matches('.map-node')){event.preventDefault();handleAction(event).catch(err=>toast(err.message));}

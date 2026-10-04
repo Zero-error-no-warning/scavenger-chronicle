@@ -7,6 +7,7 @@ import { validateSave, parseSave } from '../src/storage.js';
 import { CARD_TYPES, BALANCE } from '../src/data.js';
 import { mapLayout, renderMap } from '../src/map.js';
 import { abilityHelp } from '../src/ability-help.js';
+import { actionHelp } from '../src/action-help.js';
 const fresh=()=>newGame(218341);
 const dummy=()=>({headHP:10,bodyHP:30,headST:16,bodyST:24,armor:{head:{hardness:0,softness:2},body:{hardness:0,softness:2}}});
 function battle(cards,enemyCards=[],distance=1) {
@@ -148,4 +149,13 @@ test('探索開始時の回数の内訳は探索による疲労で書き換わ�
   searchSpot(s,s.exploration.spots[0].index);
   assert.deepEqual(s.exploration.abilityActor,basis);assert.equal(s.exploration.remaining,2);
   assert.deepEqual(parseSave(JSON.stringify(s)).exploration.abilityActor,basis);
+});
+test('操作の説明は乱数・資源・探索回数を変更せず、疲労と使えない理由を反映する',()=>{
+  const s=fresh();survey(s);s.vitals.bodyST=13;s.hunger=79;
+  const before=JSON.stringify(s),spot=s.exploration.spots[0];
+  assert.match(actionHelp(s,'survey'),/現在の探索を終える/);
+  assert.match(actionHelp(s,'search',spot.index),/52%/);
+  assert.match(actionHelp(s,'search',spot.index),/敵に遭遇する確率/);
+  actionHelp(s,'rest');actionHelp(s,'install','bed');actionHelp(s,'move',6);
+  assert.equal(JSON.stringify(s),before);
 });
