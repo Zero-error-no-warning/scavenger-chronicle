@@ -2,7 +2,7 @@ import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js';
 import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js';
 import * as world from './world.js';
 import { equipped, itemModifiers, carriedWeight } from './items.js';
-import { icon, character, scenery, weaponArt, armorArt, cardArt, escapeHTML as e } from './art.js';
+import { icon, character, scenery, weaponArt, armorArt, cardArt, escapeHTML as e } from './art.js?v=0.1.4';
 import { loadGame, saveGame, parseSave } from './storage.js';
 import { renderMap, paintMap } from './map.js';
 import { abilityHelp, abilityNames } from './ability-help.js';
