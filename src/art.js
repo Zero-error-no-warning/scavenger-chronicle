@@ -11,17 +11,18 @@ export function icon(name,cls='') {
 export const locationKinds=['road','shop','clinic','factory','forest','apart','junk','river','tower'];
 function atlas(file,col,row,cols,rows,cls='',label='',style='') {
   const x=cols>1?col/(cols-1)*100:0,y=rows>1?row/(rows-1)*100:0;
-  return `<span class="painted-atlas ${cls}" ${label?`role="img" aria-label="${e(label)}"`:'aria-hidden="true"'} style="background-image:url('./assets/art/${file}.webp');background-size:${cols*100}% ${rows*100}%;background-position:${x}% ${y}%;${style}"></span>`;
+  return `<span class="painted-atlas ${cls}" ${label?`role="img" aria-label="${e(label)}"`:'aria-hidden="true"'} style="background-image:url('./assets/art/${file}.webp?v=0.1.4');background-size:${cols*100}% ${rows*100}%;background-position:${x}% ${y}%;${style}"></span>`;
 }
 const weaponKinds=['broom','knife','pipe','axe','umbrella','shovel'];
 export function weaponArt(item={visual:'broom'},{held=false}={}) {
   const index=Math.max(0,weaponKinds.indexOf(item.visual));
   // Measured grip positions keep a held tool attached while its size changes.
-  const grips={broom:.39,knife:.6,pipe:.54,axe:.65,umbrella:.8,shovel:.5};
+  const grips={broom:.39,knife:.73,pipe:.54,axe:.65,umbrella:.74,shovel:.45};
+  const gripX={broom:.57,knife:.50,pipe:.56,axe:.61,umbrella:.50,shovel:.54};
   const sizes={broom:.8,knife:.42,pipe:.78,axe:.62,umbrella:.78,shovel:.85};
   const size=sizes[item.visual]||.8,long=item.modifiers?.includes('long')?1.12:1;
-  const height=size*long*100,top=50-(grips[item.visual]||.5)*height;
-  return atlas('weapons',index%3,Math.floor(index/3),3,2,held?'held-weapon':'item-art',held?'':item.name||'武器',held?`height:${height}%;width:${height}%;top:${top}%;left:${88-height/2}%;`:'');
+  const height=size*long*100,top=68-(grips[item.visual]||.5)*height;
+  return atlas('weapons',index%3,Math.floor(index/3),3,2,held?'held-weapon':'item-art',held?'':item.name||'武器',held?`height:${height}%;width:${height}%;top:${top}%;left:${88-(gripX[item.visual]||.5)*height}%;`:'');
 }
 function outfitIndex(head,body) {
   const row=head?.visual==='helmet'?1:head?.visual==='goggles'?2:0;
@@ -42,7 +43,7 @@ export function enemyArt(type) {
   return atlas('enemies',index,0,3,1,`painted-enemy ${type}`,type==='dog'?'野犬':type==='robot'?'保守ロボット':'敵の拾荒者');
 }
 export function vanArt(state) {
-  return `<span class="painted-van" role="img" aria-label="移動拠点スズメ号、${state.modules.length}設備"><img src="./assets/art/van.webp" alt="" decoding="async">${state.modules.length?`<span class="van-upgrades" aria-hidden="true">${state.modules.map(id=>icon({bed:'bed',storage:'bag',filter:'water',workbench:'gear',engine:'action'}[id])).join('')}</span>`:''}</span>`;
+  return `<span class="painted-van" role="img" aria-label="移動拠点スズメ号、${state.modules.length}設備"><img src="./assets/art/van.webp?v=0.1.4" alt="" decoding="async">${state.modules.length?`<span class="van-upgrades" aria-hidden="true">${state.modules.map(id=>icon({bed:'bed',storage:'bag',filter:'water',workbench:'gear',engine:'action'}[id])).join('')}</span>`:''}</span>`;
 }
 export function landmarkArt(kind) {
   const i=Math.max(0,locationKinds.indexOf(kind));
