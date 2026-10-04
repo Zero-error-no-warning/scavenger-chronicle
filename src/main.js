@@ -2,9 +2,9 @@ import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js';
 import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js';
 import * as world from './world.js';
 import { equipped, itemModifiers, carriedWeight } from './items.js';
-import { icon, character, scenery, weaponArt, escapeHTML as e } from './art.js';
+import { icon, character, scenery, weaponArt, armorArt, cardArt, escapeHTML as e } from './art.js';
 import { loadGame, saveGame, parseSave } from './storage.js';
-import { renderMap } from './map.js';
+import { renderMap, paintMap } from './map.js';
 import { abilityHelp, abilityNames } from './ability-help.js';
 import { actionHelp, actionHelpActions } from './action-help.js';
 const $=s=>document.querySelector(s);
@@ -38,7 +38,7 @@ function abilityTiles(actor) {
 
 function survivor() {
   const a=currentActor(),weapon=equipped(state,'weapon');
-  return `<aside class="survivor panel"><div class="section-label">THE SCAVENGER <span>01</span></div><div class="survivor-title"><h2>今日も、生き延びる。</h2><span class="status-dot ${a.headHP<=0?'dead':''}">${a.headHP<=0?'旅の終わり':a.headHP<=3?'頭に重傷':'旅の途中'}</span></div><div class="portrait-frame"><svg viewBox="-105 -185 235 287" aria-label="現在の装備を着た主人公" role="img">${character(state,{portrait:true})}</svg><span class="portrait-note">拾ったもので、できている。</span></div>${gauges(a)}${abilityTiles(a)}<div class="weapon-summary">${icon('blade')}<div><small>いまの相棒</small><strong>${e(weapon.name)}</strong><span>鋭さ ${weapon.sharpness} · 重さ ${weapon.weight}<br>間合い ${weapon.minRange}–${weapon.maxRange}</span></div></div><div class="pack-weight">${icon('bag')}携行重量 <strong>${carriedWeight(state)} / 12</strong></div></aside>`;
+  return `<aside class="survivor panel"><div class="section-label">THE SCAVENGER <span>01</span></div><div class="survivor-title"><h2>今日も、生き延びる。</h2><span class="status-dot ${a.headHP<=0?'dead':''}">${a.headHP<=0?'旅の終わり':a.headHP<=3?'頭に重傷':'旅の途中'}</span></div><div class="portrait-frame">${character(state,{portrait:true})}<span class="portrait-note">拾ったもので、できている。</span></div>${gauges(a)}${abilityTiles(a)}<div class="weapon-summary">${icon('blade')}<div><small>いまの相棒</small><strong>${e(weapon.name)}</strong><span>鋭さ ${weapon.sharpness} · 重さ ${weapon.weight}<br>間合い ${weapon.minRange}–${weapon.maxRange}</span></div></div><div class="pack-weight">${icon('bag')}携行重量 <strong>${carriedWeight(state)} / 12</strong></div></aside>`;
 }
 function header() {
   return `<header class="header"><a class="brand" href="./" aria-label="拾荒者クロニクル">${icon('van')}<div><span>SCAVENGER CHRONICLE</span><h1>拾荒者クロニクル</h1></div></a><div class="day-chip">${icon('sun')}<b>${state.day}<small>日目</small></b><span>${String(state.hour).padStart(2,'0')}:00</span></div><div class="survival-chip ${state.hunger>=70?'alert':''}">${icon('food')}<span>空腹 <b>${state.hunger}%</b></span></div><div class="survival-chip ${state.thirst>=70?'alert':''}">${icon('water')}<span>渇き <b>${state.thirst}%</b></span></div><div class="header-buttons">${button('sound',icon(sound?'lung':'close'),{title:sound?'音をオフ':'音をオン',cls:'icon-button'})}${button('help','?',{title:'遊び方',cls:'icon-button'})}${button('menu',icon('save'),{title:'セーブ・設定',cls:'icon-button'})}</div></header>`;
@@ -82,7 +82,7 @@ function baseControls() {
 }
 function itemCard(item,stored=false) {
   const mods=itemModifiers(item),isEquipped=state.equipment[item.slot]===item.id;
-  const graphic=item.type==='weapon'?`<svg viewBox="-43 -99 89 161" class="item-art">${weaponArt(item)}</svg>`:`<div class="armor-swatch" style="color:${item.color}">${icon(item.slot==='head'?'head':'cloth')}</div>`;
+  const graphic=item.type==='weapon'?weaponArt(item):armorArt(item);
   return `<article class="item-card ${isEquipped?'equipped':''}"><div class="item-head">${graphic}<div><span class="eyebrow">${item.type==='weapon'?'WEAPON':item.slot==='head'?'HEAD GEAR':'BODY GEAR'} ${isEquipped?' / EQUIPPED':''}</span><h3>${e(item.name)}</h3><small>${item.carry} 携行重量</small></div></div><p>${e(item.text)}</p><div class="item-numbers">${item.type==='weapon'?`<span>鋭さ <b>${item.sharpness}</b></span><span>重さ <b>${item.weight}</b></span><span>射程 <b>${item.minRange}–${item.maxRange}</b></span>`:`<span>硬さ <b>${item.hardness}</b></span><span>柔らかさ <b>${item.softness}</b></span>`}</div>${mods.length?`<div class="tradeoff">${mods.map(mod=>`<div class="modifier-row"><b>${e(mod.name)}</b><span class="benefit">＋ ${e(mod.good)}</span><span class="drawback">− ${e(mod.bad)}</span></div>`).join('')}</div>`:'<div class="tradeoff"><span>そのままの、素朴な装備。</span></div>'}${item.cards?`<div class="granted-cards">デッキに追加：${item.cards.map(k=>CARD_TYPES[k].name).join(' / ')}</div>`:''}<div class="item-actions">${stored?button('retrieveItem','持ち出す',{value:item.id,disabled:!world.atBase(state)}):button('equip',isEquipped?'装備中':'装備する',{value:item.id,cls:isEquipped?'':'primary',disabled:isEquipped})}${!stored?button('stashItem','家にしまう',{value:item.id,disabled:isEquipped||!world.atBase(state)}):''}${!stored?button('salvage','解体',{value:item.id,disabled:isEquipped||!world.atBase(state),cls:'text-button'}):''}</div></article>`;
 }
 function inventoryMain() {
@@ -99,7 +99,7 @@ function cardFace(key,{index=null,hidden=false,selected=false,small=false,number
   if(hidden)return `<div class="intent-card hidden-card" aria-label="${number}番目の敵行動：伏せカード"><span class="card-number">${number}</span><span class="card-back-symbol">?</span><small>伏せカード</small></div>`;
   const a=state.combat?.player;
   const range=card.range==='weapon'?`${a?.weapon.minRange}–${a?.weapon.maxRange}`:card.range?`${card.range[0]}–${card.range[1]}`:null;
-  const html=`${number!==null?`<span class="card-number">${number}</span>`:''}<div class="card-top"><span>${{attack:'ATTACK',move:'MOVE',guard:'GUARD',recover:'RECOVER',escape:'ESCAPE'}[card.kind]}</span>${card.bodyCost||card.headCost?`<small>体${card.bodyCost} / 頭${card.headCost}</small>`:'<small>回復</small>'}</div><div class="card-art">${icon(card.icon)}</div><strong>${card.name}</strong>${small?'':`<p>${card.desc}</p><div class="card-foot">${range?`距離 ${range}`:card.kind==='move'?'距離を変える':'間合い不問'}${card.kind==='attack'?`<span>${icon('dice')}×実効</span>`:''}</div>`}${selected?`<span class="selected-order">${state.combat.plan.indexOf(index)+1}</span>`:''}`;
+  const html=`${number!==null?`<span class="card-number">${number}</span>`:''}<div class="card-top"><span>${{attack:'ATTACK',move:'MOVE',guard:'GUARD',recover:'RECOVER',escape:'ESCAPE'}[card.kind]}</span>${card.bodyCost||card.headCost?`<small>体${card.bodyCost} / 頭${card.headCost}</small>`:'<small>回復</small>'}</div><div class="card-art">${cardArt(key)}</div><strong>${card.name}</strong>${small?'':`<p>${card.desc}</p><div class="card-foot">${range?`距離 ${range}`:card.kind==='move'?'距離を変える':'間合い不問'}${card.kind==='attack'?`<span>${icon('dice')}×実効</span>`:''}</div>`}${selected?`<span class="selected-order">${state.combat.plan.indexOf(index)+1}</span>`:''}`;
   return index!==null?button('selectCard',html,{value:index,cls:`action-card ${card.color} ${selected?'selected':''}`,disabled}):`<div class="intent-card ${card.color}">${html}</div>`;
 }
 function battleMain() {
@@ -128,7 +128,8 @@ function render() {
   else if(tab==='inventory'){main=inventoryMain();controls=inventoryControls();}
   else if(tab==='journal'){main=journalMain();controls=exploreControls();}
   else {main=exploreMain();controls=exploreControls();}
-  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.1.2 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'この行動列で実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
+  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.1.3 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'この行動列で実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
+  paintMap(app.querySelector('.painted-map'),state);
 }
 function openDialog(title,body) {
   dialog.innerHTML=`<div class="dialog-header"><h2>${title}</h2>${button('closeDialog',icon('close'),{cls:'icon-button',title:'閉じる'})}</div><div class="dialog-body">${body}</div>`;
@@ -201,7 +202,7 @@ const abilityTooltip=document.createElement('div');
 abilityTooltip.id='ability-tooltip';abilityTooltip.className='ability-tooltip';abilityTooltip.setAttribute('role','tooltip');abilityTooltip.hidden=true;document.body.append(abilityTooltip);
 let tooltipTrigger=null,tooltipPinned=false,holdTimer=null,blockedHelpClick=null;
 const helpSelector='[data-ability],[data-help-action]';
-function hideAbilityTooltip(){abilityTooltip.hidden=true;tooltipTrigger=null;tooltipPinned=false;}
+function hideAbilityTooltip(){abilityTooltip.hidden=true;tooltipTrigger=null;tooltipPinned=false;abilityTooltip.classList.remove('pinned');}
 function showAbilityTooltip(trigger){
   const key=trigger.dataset.ability,context=trigger.dataset.context,b=shownBattle(),actual=state.combat,ex=state.exploration;
   let actor=currentActor(),options={battle:!!actual,roundValue:actual&&key!=='execution'?actual.limits[key]:null};
@@ -211,11 +212,13 @@ function showAbilityTooltip(trigger){
   const html=key?abilityHelp(actor,key,options):actionHelp(state,trigger.dataset.helpAction,trigger.dataset.value,{driving});
   if(!html){hideAbilityTooltip();return;}
   abilityTooltip.innerHTML=html;abilityTooltip.hidden=false;tooltipTrigger=trigger;
-  const r=trigger.getBoundingClientRect(),width=Math.min(326,innerWidth-24);abilityTooltip.style.width=`${width}px`;
-  const height=abilityTooltip.offsetHeight,left=Math.max(12,Math.min(r.left,innerWidth-width-12)),top=r.bottom+8+height<=innerHeight-12?r.bottom+8:Math.max(12,r.top-height-8);
+  const r=trigger.getBoundingClientRect(),width=Math.min(420,innerWidth-24);abilityTooltip.style.width=`${width}px`;
+  const height=abilityTooltip.offsetHeight,beside=!!trigger.closest('.commands')&&r.left>width+24;
+  const left=beside?r.left-width-12:Math.max(12,Math.min(r.left,innerWidth-width-12));
+  const top=beside?Math.max(12,Math.min(r.top,innerHeight-height-12)):r.bottom+8+height<=innerHeight-12?r.bottom+8:Math.max(12,r.top-height-8);
   abilityTooltip.style.left=`${left}px`;abilityTooltip.style.top=`${top}px`;
 }
-function toggleAbilityTooltip(trigger){if(tooltipPinned&&tooltipTrigger===trigger){hideAbilityTooltip();return;}showAbilityTooltip(trigger);tooltipPinned=true;}
+function toggleAbilityTooltip(trigger){if(tooltipPinned&&tooltipTrigger===trigger){hideAbilityTooltip();return;}showAbilityTooltip(trigger);tooltipPinned=true;abilityTooltip.classList.add('pinned');}
 document.addEventListener('pointerover',event=>{if(event.pointerType==='touch')return;const trigger=event.target.closest(helpSelector);if(trigger&&!tooltipPinned&&trigger!==tooltipTrigger)showAbilityTooltip(trigger);});
 document.addEventListener('pointerout',event=>{if(!tooltipPinned&&event.target.closest(helpSelector)&&!event.relatedTarget?.closest?.(helpSelector))hideAbilityTooltip();});
 document.addEventListener('focusin',event=>{const trigger=event.target.closest(helpSelector);if(trigger&&!tooltipPinned)showAbilityTooltip(trigger);});
@@ -233,7 +236,7 @@ document.addEventListener('pointerdown',event=>{
     if(blockedHelpClick?.trigger===trigger)blockedHelpClick.until=Date.now()+1000;
   };
   document.addEventListener('pointerup',finishHold);document.addEventListener('pointercancel',finishHold);
-  holdTimer=setTimeout(()=>{showAbilityTooltip(trigger);tooltipPinned=true;blockedHelpClick={trigger,until:Date.now()+2000};},500);
+  holdTimer=setTimeout(()=>{showAbilityTooltip(trigger);tooltipPinned=true;abilityTooltip.classList.add('pinned');blockedHelpClick={trigger,until:Date.now()+2000};},500);
 });
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape')hideAbilityTooltip();
