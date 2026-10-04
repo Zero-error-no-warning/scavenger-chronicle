@@ -60,7 +60,7 @@ export function survey(s) {
   if(s.exploration?.remaining>0)return '見つけた探索箇所を調べるか、探索を終えてください。';
   const spots=shuffled(s,loc.spots.map((name,index)=>({name,index})).filter(x=>!node.used.includes(x.index))).slice(0,a.judgment);
   if(!spots.length)return 'ここは調べ尽くしました。別の場所へ移動しましょう。';
-  s.exploration={spots,remaining:a.action,stats:{...a}};
+  s.exploration={spots,remaining:a.action,stats:{...a},abilityActor:playerActor(s)};
   log(s,`${spots.length}箇所を発見。あと${a.action}回調べられる。`);
   return null;
 }

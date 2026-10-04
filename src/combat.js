@@ -2,9 +2,14 @@ import { BALANCE, BASE_DECK, CARD_TYPES, ENEMIES } from './data.js';
 import { equipped } from './items.js';
 import { clamp, pick, random, round, shuffled } from './random.js';
 
+export function abilityBreakdown(actor) {
+  return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
+    const base=actor.base[key],effectiveBase=Math.max(min,base),ratio=clamp(actor[gauge]/actor.max[gauge],0,1);
+    return [key,{base,effectiveBase,gauge,current:actor[gauge],maximum:actor.max[gauge],ratio,min,value:Math.max(min,Math.ceil(effectiveBase*ratio))}];
+  }));
+}
 export function abilities(actor) {
-  const scaled = (key,gauge,min) => Math.max(min,Math.ceil(Math.max(min,actor.base[key]) * clamp(actor[gauge]/actor.max[gauge],0,1)));
-  return { perception:scaled('perception','headHP',0), judgment:scaled('judgment','headST',1), action:scaled('action','bodyHP',1), execution:scaled('execution','bodyST',1) };
+  return Object.fromEntries(Object.entries(abilityBreakdown(actor)).map(([key,detail])=>[key,detail.value]));
 }
 export function playerActor(state) {
   const base = { ...BALANCE.player };
@@ -45,6 +50,7 @@ export function prepareRound(state,b) {
   b.resolved=false;
   b.round++;
   b.limits=abilities(b.player);
+  b.limitActor=structuredClone(b.player);
   b.hand=draw(state,b,'player',b.limits.judgment);
   const enemyStats=abilities(b.enemy);
   const candidates=draw(state,b,'enemy',enemyStats.judgment);

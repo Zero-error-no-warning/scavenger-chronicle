@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, move, survey, searchSpot, deposit, install, rest, equip, neighbors, nextRegion } from '../src/world.js';
-import { abilities, beginCombat, damageDice, resolveRound, prepareRound, validatePlan, inRange, playerActor } from '../src/combat.js';
+import { abilities, abilityBreakdown, beginCombat, damageDice, resolveRound, prepareRound, validatePlan, inRange, playerActor } from '../src/combat.js';
 import { makeItem, generateItem, carriedWeight } from '../src/items.js';
 import { validateSave, parseSave } from '../src/storage.js';
 import { CARD_TYPES, BALANCE } from '../src/data.js';
+import { mapLayout, renderMap } from '../src/map.js';
+import { abilityHelp } from '../src/ability-help.js';
 const fresh=()=>newGame(218341);
 const dummy=()=>({headHP:10,bodyHP:30,headST:16,bodyST:24,armor:{head:{hardness:0,softness:2},body:{hardness:0,softness:2}}});
 function battle(cards,enemyCards=[],distance=1) {
@@ -119,4 +121,31 @@ test('破損セーブ・未知カード・不正装備を読んでも拒否す�
   assert.throws(()=>parseSave('{}'));
   const s=fresh();s.equipment.head='not-found';assert.throws(()=>validateSave(s));
   const bstate=fresh();beginCombat(bstate,'dog');bstate.combat.hand.push('unknown');assert.throws(()=>validateSave(bstate));
+});
+test('地図描画はゲーム乱数とセーブ状態を変更せず、再読み込みでも同じ配置',()=>{
+  const s=fresh(),before=JSON.stringify(s),layout=mapLayout(s);
+  renderMap(s);assert.equal(JSON.stringify(s),before);assert.deepEqual(mapLayout(parseSave(before)),layout);
+  assert.equal(layout.nodes.length,15);assert.equal(layout.roads.length,22);
+  for(const road of layout.roads)assert.ok(neighbors(road.a.id).includes(road.b.id));
+  move(s,6);assert.deepEqual(mapLayout(s).nodes.map(({id,x,y})=>({id,x,y})),layout.nodes.map(({id,x,y})=>({id,x,y})));
+});
+test('装備補正と傷の計算内訳は実際の能力値に一致する',()=>{
+  const s=fresh();equip(s,s.inventory.find(i=>i.baseId==='knife').id);s.vitals.bodyHP=15;
+  const actor=playerActor(s),detail=abilityBreakdown(actor).action;
+  assert.equal(detail.base,2);assert.equal(detail.ratio,.5);assert.equal(detail.value,1);
+  assert.match(abilityHelp(actor,'action'),/長すぎる/);assert.match(abilityHelp(actor,'action'),/15 \/ 30/);
+  actor.base.action=-3;assert.equal(abilityBreakdown(actor).action.value,1);
+});
+test('ラウンド開始時の内訳は途中の疲労と区別され、セーブに残る',()=>{
+  const s=fresh(),b=beginCombat(s,'dog'),before=structuredClone(b.limitActor);
+  b.player.headST=0;assert.equal(abilities(b.player).judgment,1);assert.equal(b.limits.judgment,5);
+  const copy=parseSave(JSON.stringify(s));assert.deepEqual(copy.combat.limitActor,before);
+  prepareRound(s,b);assert.equal(b.limitActor.headST,0);assert.equal(b.limits.judgment,1);
+  delete copy.combat.limitActor;assert.doesNotThrow(()=>validateSave(copy));
+});
+test('探索開始時の回数の内訳は探索による疲労で書き換わらない',()=>{
+  const s=fresh();survey(s);const basis=structuredClone(s.exploration.abilityActor);
+  searchSpot(s,s.exploration.spots[0].index);
+  assert.deepEqual(s.exploration.abilityActor,basis);assert.equal(s.exploration.remaining,2);
+  assert.deepEqual(parseSave(JSON.stringify(s)).exploration.abilityActor,basis);
 });

@@ -4,6 +4,8 @@ import * as world from './world.js';
 import { equipped, itemModifiers, carriedWeight } from './items.js';
 import { icon, character, scenery, weaponArt, escapeHTML as e } from './art.js';
 import { loadGame, saveGame, parseSave } from './storage.js';
+import { renderMap } from './map.js';
+import { abilityHelp, abilityNames } from './ability-help.js';
 const $=s=>document.querySelector(s);
 let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false;
 try {state=loadGame()||world.newGame();}catch(err){state=world.newGame();saveError=err.message;}
@@ -25,10 +27,14 @@ const currentActor=()=>shownBattle()?.player||playerActor(state);
 function gauges(actor,compact=false) {
   return `<div class="gauges ${compact?'compact':''}">${[['headHP','頭HP','head','rose'],['bodyHP','体HP','body','coral'],['headST','頭ST','brain','blue'],['bodyST','体ST','lung','gold']].map(([key,label,svg,color])=>`<div class="gauge ${color}"><div class="gauge-top"><span>${icon(svg)}${label}</span><b>${actor[key]}<small> / ${actor.max[key]}</small></b></div><div class="bar" role="meter" aria-label="${label}" aria-valuenow="${actor[key]}" aria-valuemin="0" aria-valuemax="${actor.max[key]}"><i style="width:${Math.max(0,actor[key]/actor.max[key]*100)}%"></i></div></div>`).join('')}</div>`;
 }
-function abilityTiles(actor) {
-  const a=abilities(actor);
-  return `<div class="abilities">${[['perception','知覚','eye','公開する敵カード数'],['judgment','判断','brain','引く手札の枚数'],['action','行動','action','実行できるカード数'],['execution','実効','dice','攻撃の６面ダイス数']].map(([key,name,svg,title])=>`<div class="ability" title="${title}">${icon(svg)}<span>${name}</span><strong>${a[key]}</strong></div>`).join('')}</div>`;
+function abilityTrigger(key,label,{context='current',cls='ability-number'}={}) {
+  return `<button type="button" class="${cls}" data-action="explain" data-ability="${key}" data-context="${context}" aria-label="${abilityNames[key]}の計算内訳" aria-describedby="ability-tooltip">${label}</button>`;
 }
+function abilityTiles(actor) {
+  const a=abilities(actor),context=actor.visual==='player'?'current':'enemy';
+  return `<div class="abilities">${[['perception','知覚','eye'],['judgment','判断','brain'],['action','行動','action'],['execution','実効','dice']].map(([key,name,svg])=>abilityTrigger(key,`${icon(svg)}<span>${name}</span><strong>${a[key]}</strong>`,{context,cls:'ability'})).join('')}</div>`;
+}
+
 function survivor() {
   const a=currentActor(),weapon=equipped(state,'weapon');
   return `<aside class="survivor panel"><div class="section-label">THE SCAVENGER <span>01</span></div><div class="survivor-title"><h2>今日も、生き延びる。</h2><span class="status-dot ${a.headHP<=0?'dead':''}">${a.headHP<=0?'旅の終わり':a.headHP<=3?'頭に重傷':'旅の途中'}</span></div><div class="portrait-frame"><svg viewBox="-105 -185 235 287" aria-label="現在の装備を着た主人公" role="img">${character(state,{portrait:true})}</svg><span class="portrait-note">拾ったもので、できている。</span></div>${gauges(a)}${abilityTiles(a)}<div class="weapon-summary">${icon('blade')}<div><small>いまの相棒</small><strong>${e(weapon.name)}</strong><span>鋭さ ${weapon.sharpness} · 重さ ${weapon.weight}<br>間合い ${weapon.minRange}–${weapon.maxRange}</span></div></div><div class="pack-weight">${icon('bag')}携行重量 <strong>${carriedWeight(state)} / 12</strong></div></aside>`;
@@ -45,13 +51,9 @@ function locationHeader(camp=false) {
 }
 function distanceToBase(){return Math.abs(state.location%5-state.baseLocation%5)+Math.abs(Math.floor(state.location/5)-Math.floor(state.baseLocation/5));}
 function map() {
-  const neighbors=world.neighbors(state.location);
-  return `<div class="map-wrap ${mapOpen?'open':''}"><div class="map-caption"><span>${icon('map')}周辺の地図</span><small>${driving?'拠点ごと移動・燃料を使用':'隣の区画を選ぶと徒歩移動'}</small>${button('toggleMap',mapOpen?'閉じる':'開く',{cls:'mobile-map-toggle',title:'周辺地図の表示を切り替える'})}</div><div class="world-map">${state.world.map(node=>{
-    const loc=LOCATIONS.find(x=>x.id===node.locId),active=node.id===state.location,adjacent=neighbors.includes(node.id),base=node.id===state.baseLocation;
-    const svg={road:'advance',shop:'bag',clinic:'medical',factory:'gear',forest:'cloth',apart:'body',junk:'gear',river:'water',tower:'action'}[loc.kind];
-    return button('move',`${icon(base?'van':node.seen?svg:'close')}<span>${active?'現在地':base?'走る家':node.seen?e(loc.name.replace(/.*?の/,'')):'未踏'}</span>${active?'<i class="here-dot"></i>':''}`,{value:node.id,cls:`map-cell ${active?'current':''} ${adjacent?'reachable':''} ${base?'home':''}`,disabled:!adjacent||!!state.combat,title:node.seen?loc.name:'未踏の区画'});
-  }).join('')}</div></div>`;
+  return `<div class="map-wrap ${mapOpen?'open':''}"><div class="map-caption"><span>${icon('map')}周辺の地図</span><small>${driving?'光る施設へ拠点ごと移動':'光る施設を選ぶと徒歩移動'}</small>${button('toggleMap',mapOpen?'閉じる':'開く',{cls:'mobile-map-toggle',title:'周辺地図の表示を切り替える'})}</div>${renderMap(state,{driving})}</div>`;
 }
+
 function journalSnippet() {
   return `<section class="field-log"><div class="section-label">FIELD JOURNAL ${icon('book')}</div>${state.log.slice(0,3).map((l,i)=>`<p class="${i===0?'latest':''}"><time>${String(l.hour).padStart(2,'0')}:00</time>${e(l.text)}</p>`).join('')}</section>`;
 }
@@ -59,20 +61,20 @@ function supplyStrip() {
   return `<div class="supplies">${Object.entries(RESOURCES).map(([key,r])=>`<span title="携行している${r.name}">${icon(r.icon)}<b>${state.pack[key]}</b></span>`).join('')}</div>`;
 }
 function exploreMain() {
-  return `<main class="main-column">${locationHeader()}<div class="scene-frame">${scenery(state,world.location(state).kind)}<div class="scene-story"><span>THE WORLD AFTER</span><p>終わった世界にも、<br>今日の居場所はある。</p></div><div class="scene-weather">風の音だけが、聞こえる。</div></div>${map()}${journalSnippet()}</main>`;
+  return `<main class="main-column explore-main">${locationHeader()}<div class="scene-frame">${scenery(state,world.location(state).kind)}<div class="scene-story"><span>THE WORLD AFTER</span><p>終わった世界にも、<br>今日の居場所はある。</p></div><div class="scene-weather">風の音だけが、聞こえる。</div></div>${map()}${journalSnippet()}</main>`;
 }
 function exploreControls() {
   const ex=state.exploration,a=world.stats(state),loc=world.location(state),available=loc.spots.length-state.world[state.location].used.length;
   return `<aside class="commands panel"><div class="section-label">OUT THERE ${icon('eye')}</div><h2>何をしよう。</h2><p class="muted">${available>0?'拾えるものを探して、家に持ち帰ろう。':'この場所は調べ尽くした。次の場所へ。'}</p><div class="danger-line"><span>遭遇の危険</span><span class="danger-pips">${[0,1,2,3,4].map(i=>`<i class="${i<Math.ceil(loc.danger*10)?'on':''}"></i>`).join('')}</span></div>
   ${button('survey',`${icon('eye')}周辺を見渡す`,{cls:'primary full',disabled:!!ex?.remaining||available===0})}
-  <div class="search-summary"><span>発見 <b>${a.judgment}</b> 箇所まで</span><span>探索 <b>${ex?.remaining??a.action}</b> 回</span></div>
+  <div class="search-summary"><span>発見 ${abilityTrigger('judgment',ex?.stats?.judgment??a.judgment,{context:ex?'exploration':'current'})} 箇所まで</span><span>探索 ${abilityTrigger('action',ex?.remaining??a.action,{context:ex?'exploration':'current'})} 回</span></div>
   ${ex?.remaining>0?`<div class="spots">${ex.spots.map(spot=>button('search',`<span>${icon('bag')}<b>${e(spot.name)}</b></span><small>調べる ${icon('advance')}</small>`,{value:spot.index,cls:'spot'})).join('')}</div>${button('endSearch','探索を切り上げる',{cls:'text-button'})}`:'<div class="quiet-note">引き出しの中、瓦礫の下。<br>役に立つものは、まだ眠っている。</div>'}
   <div class="command-divider"></div><div class="section-label">POCKET SUPPLIES</div>${supplyStrip()}<div class="quick-supplies">${button('consume',`${icon('food')}食べる`,{value:'food',disabled:state.pack.food+(world.atBase(state)?state.baseResources.food:0)<1})}${button('consume',`${icon('water')}飲む`,{value:'water',disabled:state.pack.water+(world.atBase(state)?state.baseResources.water:0)<1})}${button('consume',`${icon('medical')}手当`,{value:'med',disabled:state.pack.med+(world.atBase(state)?state.baseResources.med:0)<1})}</div>
   ${button('rest',`${icon('bed')}${world.atBase(state)?'家で休む':'物陰で休む'}<small>食料１＋水１</small>`,{cls:'full secondary'})}
-  <div class="command-divider"></div>${button('driving',`${icon('van')}${driving?'拠点ごと移動中':'拠点を動かす'}`,{cls:`full ${driving?'active':''}`,disabled:!world.atBase(state)})}<small class="hint">${driving?'地図の隣接区画を選択。':'拠点にいる時、隣の区画へ車で移動。'} 燃料${state.modules.includes('engine')?1:2}。</small>${button('encounter','近くの気配を追う',{cls:'text-button encounter',title:'意図的に戦闘を始める。勝てるとは限りません。'})}</aside>`;
+  <div class="command-divider"></div>${button('driving',`${icon('van')}${driving?'拠点ごと移動中':'拠点を動かす'}`,{cls:`full ${driving?'active':''}`,disabled:!world.atBase(state)})}<small class="hint">${driving?'地図の光る施設を選択。':'拠点にいる時、道路でつながる施設へ車で移動。'} 燃料${state.modules.includes('engine')?1:2}。</small>${button('encounter','近くの気配を追う',{cls:'text-button encounter',title:'意図的に戦闘を始める。勝てるとは限りません。'})}</aside>`;
 }
 function baseMain() {
-  return `<main class="main-column">${locationHeader(true)}<div class="scene-frame camp">${scenery(state,world.location(state).kind,{camp:true})}<div class="scene-story"><span>HOME IS WHERE WE PARK</span><p>窓から灯りが漏れる。<br>ここが、いまの家。</p></div></div><div class="base-banner">${icon('van')}<div><strong>${state.modules.length} / 5 設備</strong><span>拾った部品が、少しずつ家になる。</span></div>${world.atBase(state)?button('deposit','資源を全部しまう',{cls:'primary'}):'<span class="badge">拠点に戻ると利用できます</span>'}</div><div class="module-grid">${MODULES.map(mod=>`<article class="module ${state.modules.includes(mod.id)?'installed':''}"><div>${icon(mod.icon)}<span>${state.modules.includes(mod.id)?'INSTALLED':'UPGRADE'}</span></div><h3>${mod.name}</h3><p>${mod.text}</p><div class="costs">${Object.entries(mod.cost).map(([key,n])=>`<span>${icon(RESOURCES[key].icon)}${n}</span>`).join('')}</div>${button('install',state.modules.includes(mod.id)?`${icon('check')}取り付け済み`:'取り付ける',{value:mod.id,cls:'full',disabled:state.modules.includes(mod.id)||!world.atBase(state)||Object.entries(mod.cost).some(([key,n])=>state.baseResources[key]+state.pack[key]<n)})}</article>`).join('')}</div></main>`;
+  return `<main class="main-column base-main">${locationHeader(true)}<div class="scene-frame camp">${scenery(state,world.location(state).kind,{camp:true})}<div class="scene-story"><span>HOME IS WHERE WE PARK</span><p>窓から灯りが漏れる。<br>ここが、いまの家。</p></div></div><div class="base-banner">${icon('van')}<div><strong>${state.modules.length} / 5 設備</strong><span>拾った部品が、少しずつ家になる。</span></div>${world.atBase(state)?button('deposit','資源を全部しまう',{cls:'primary'}):'<span class="badge">拠点に戻ると利用できます</span>'}</div><div class="module-grid">${MODULES.map(mod=>`<article class="module ${state.modules.includes(mod.id)?'installed':''}"><div>${icon(mod.icon)}<span>${state.modules.includes(mod.id)?'INSTALLED':'UPGRADE'}</span></div><h3>${mod.name}</h3><p>${mod.text}</p><div class="costs">${Object.entries(mod.cost).map(([key,n])=>`<span>${icon(RESOURCES[key].icon)}${n}</span>`).join('')}</div>${button('install',state.modules.includes(mod.id)?`${icon('check')}取り付け済み`:'取り付ける',{value:mod.id,cls:'full',disabled:state.modules.includes(mod.id)||!world.atBase(state)||Object.entries(mod.cost).some(([key,n])=>state.baseResources[key]+state.pack[key]<n)})}</article>`).join('')}</div></main>`;
 }
 function baseControls() {
   return `<aside class="commands panel"><div class="section-label">IN OUR HOME ${icon('van')}</div><h2>備えが、明日になる。</h2><p class="muted">拠点の物資。右の＋で１つ持ち出せる。</p><div class="resource-list">${Object.entries(RESOURCES).map(([key,r])=>`<div>${icon(r.icon)}<span>${r.name}</span><strong>${state.baseResources[key]}</strong>${button('takeSupply',icon('plus'),{value:key,cls:'icon-button',disabled:!world.atBase(state)||!state.baseResources[key],title:`${r.name}を１つ持ち出す`})}</div>`).join('')}</div>${button('rest',`${icon('bed')}家で休む`,{cls:'secondary full',disabled:!world.atBase(state)})}<small class="hint">食料１・水１ / ６時間。寝床を作ると傷の回復も増える。</small><div class="command-divider"></div><div class="section-label">NEXT STOP</div><h3>まだ知らない街へ。</h3><p class="muted">エンジンを修理し、燃料を３つ集めたら出発できる。</p>${button('nextRegion',`${icon('advance')}次の街へ走る`,{cls:'primary full',disabled:!world.atBase(state)||!state.modules.includes('engine')})}<small class="hint">この地域の地図と探索状況はリセットされる。</small></aside>`;
@@ -93,7 +95,7 @@ function journalMain() {
 }
 function cardFace(key,{index=null,hidden=false,selected=false,small=false,number=null,disabled=false}={}) {
   const card=CARD_TYPES[key];
-  if(hidden)return `<div class="intent-card hidden-card"><span>?</span><small>見えない行動</small></div>`;
+  if(hidden)return `<div class="intent-card hidden-card" aria-label="${number}番目の敵行動：伏せカード"><span class="card-number">${number}</span><span class="card-back-symbol">?</span><small>伏せカード</small></div>`;
   const a=state.combat?.player;
   const range=card.range==='weapon'?`${a?.weapon.minRange}–${a?.weapon.maxRange}`:card.range?`${card.range[0]}–${card.range[1]}`:null;
   const html=`${number!==null?`<span class="card-number">${number}</span>`:''}<div class="card-top"><span>${{attack:'ATTACK',move:'MOVE',guard:'GUARD',recover:'RECOVER',escape:'ESCAPE'}[card.kind]}</span>${card.bodyCost||card.headCost?`<small>体${card.bodyCost} / 頭${card.headCost}</small>`:'<small>回復</small>'}</div><div class="card-art">${icon(card.icon)}</div><strong>${card.name}</strong>${small?'':`<p>${card.desc}</p><div class="card-foot">${range?`距離 ${range}`:card.kind==='move'?'距離を変える':'間合い不問'}${card.kind==='attack'?`<span>${icon('dice')}×実効</span>`:''}</div>`}${selected?`<span class="selected-order">${state.combat.plan.indexOf(index)+1}</span>`:''}`;
@@ -101,21 +103,22 @@ function cardFace(key,{index=null,hidden=false,selected=false,small=false,number
 }
 function battleMain() {
   const b=shownBattle(),actual=state.combat,reveal=playing||actual.resolved;
-  const currentFrame=frame;
-  return `<main class="main-column battle-main"><div class="location-heading"><div><span class="eyebrow">${playing?'RESOLVING':actual.result?'AFTER THE DUST':'PLAN BEFORE YOU ACT'}</span><h2>${e(b.enemy.name)}</h2></div><span class="badge coral">ROUND ${actual.round}</span></div><div class="enemy-intents"><div class="intents-label">相手の行動列<small>${reveal?'行動を解決中':'知覚で先頭から'+actual.limits.perception+'枚公開'}</small></div><div class="intents-row">${actual.enemyPlan.map((key,i)=>cardFace(key,{hidden:!reveal&&i>=actual.limits.perception,small:true,number:i+1})).join('')}</div></div><div class="scene-frame battle-scene ${currentFrame?.effects.length?'impact':''}">${scenery(state,'road',{combat:b})}<div class="distance-strip"><span>近い</span>${Array.from({length:7},(_,i)=>`<div class="distance-step ${i===b.distance?'active':''}">${i}</div>`).join('')}<span>遠い</span></div>${currentFrame?`<div class="resolution-caption"><b>行動 ${currentFrame.slot}</b><span>あなた：${CARD_TYPES[currentFrame.playerCard]?.name||'待機'} / 相手：${CARD_TYPES[currentFrame.enemyCard]?.name||'待機'}</span></div>`:''}${currentFrame?.effects.length?`<div class="dice-overlay">${currentFrame.effects.map(effect=>`<div><small>${effect.side==='player'?'あなた':'相手'}</small>${effect.dice.map(d=>`<span class="die ${d===6?'critical':''}">${d}</span>`).join('')}</div>`).join('')}</div>`:''}</div>
-  ${actual.result?`<div class="battle-result"><span class="eyebrow">${actual.result==='victory'?'STILL ALIVE':actual.result==='escaped'?'LIVE TO SEE TOMORROW':'THE ROAD ENDS HERE'}</span><h2>${{victory:'まだ、生きている。',escaped:'走り抜けた。',defeat:'旅は、ここまで。',mutual:'どちらも、戻れなかった。'}[actual.result]}</h2><p>${actual.result==='victory'?'傷を手当てして、家に帰ろう。':'勝つことだけが、生き残ることではなかった。'}</p>${button('finishCombat',actual.result==='victory'||actual.result==='escaped'?'探索に戻る':'旅の記録へ',{cls:'primary',disabled:playing})}</div>`:`<div class="hand-heading"><span>あなたの手札 <b>${actual.hand.length}</b></span><small>タップした順に並ぶ。もう一度タップで取り消し。</small></div><div class="hand" aria-label="行動カードの手札">${actual.hand.map((key,i)=>cardFace(key,{index:i,selected:actual.plan.includes(i),disabled:playing||actual.resolved||(!actual.plan.includes(i)&&actual.plan.length>=actual.limits.action)})).join('')}</div>`}
+  const currentFrame=frame,visibleCount=reveal?actual.enemyPlan.length:Math.min(actual.limits.perception,actual.enemyPlan.length),hiddenCount=actual.enemyPlan.length-visibleCount;
+  return `<main class="main-column battle-main"><div class="location-heading"><div><span class="eyebrow">${playing?'RESOLVING':actual.result?'AFTER THE DUST':'PLAN BEFORE YOU ACT'}</span><h2>${e(b.enemy.name)}</h2></div><span class="badge coral">ROUND ${actual.round}</span></div><section class="enemy-intents" aria-label="相手の予定：合計${actual.enemyPlan.length}行動"><div class="intents-heading"><b>相手の行動列 · 合計 ${actual.enemyPlan.length} 回</b><span>公開 ${visibleCount} 枚 / 伏せ ${hiddenCount} 枚</span>${abilityTrigger('perception',`知覚 ${actual.limits.perception}`,{context:'round'})}</div><div class="intents-row">${actual.enemyPlan.map((key,i)=>cardFace(key,{hidden:!reveal&&i>=actual.limits.perception,small:true,number:i+1})).join('')||'<p class="muted">相手はこのラウンド待機します。</p>'}</div></section><div class="scene-frame battle-scene ${currentFrame?.effects.length?'impact':''}">${scenery(state,'road',{combat:b})}<div class="distance-strip"><span>近い</span>${Array.from({length:7},(_,i)=>`<div class="distance-step ${i===b.distance?'active':''}">${i}</div>`).join('')}<span>遠い</span></div>${currentFrame?`<div class="resolution-caption"><b>行動 ${currentFrame.slot}</b><span>あなた：${CARD_TYPES[currentFrame.playerCard]?.name||'待機'} / 相手：${CARD_TYPES[currentFrame.enemyCard]?.name||'待機'}</span></div>`:''}${currentFrame?.effects.length?`<div class="dice-overlay">${currentFrame.effects.map(effect=>`<div><small>${effect.side==='player'?'あなた':'相手'}</small>${effect.dice.map(d=>`<span class="die ${d===6?'critical':''}">${d}</span>`).join('')}</div>`).join('')}</div>`:''}</div>
+  ${actual.result?`<div class="battle-result"><span class="eyebrow">${actual.result==='victory'?'STILL ALIVE':actual.result==='escaped'?'LIVE TO SEE TOMORROW':'THE ROAD ENDS HERE'}</span><h2>${{victory:'まだ、生きている。',escaped:'走り抜けた。',defeat:'旅は、ここまで。',mutual:'どちらも、戻れなかった。'}[actual.result]}</h2><p>${actual.result==='victory'?'傷を手当てして、家に帰ろう。':'勝つことだけが、生き残ることではなかった。'}</p>${button('finishCombat',actual.result==='victory'||actual.result==='escaped'?'探索に戻る':'旅の記録へ',{cls:'primary',disabled:playing})}</div>`:`<div class="hand-heading"><span>あなたの手札 ${abilityTrigger('judgment',actual.hand.length,{context:'round'})}</span><small>タップした順に並ぶ。もう一度タップで取り消し。</small></div><div class="hand" aria-label="行動カードの手札">${actual.hand.map((key,i)=>cardFace(key,{index:i,selected:actual.plan.includes(i),disabled:playing||actual.resolved||(!actual.plan.includes(i)&&actual.plan.length>=actual.limits.action)})).join('')}</div>`}
   <div class="battle-log" aria-live="polite">${(currentFrame?.messages||actual.history.slice(-4)).map(message=>`<p>${e(message)}</p>`).join('')||'<p>相手の予定を読み、自分の行動列を組もう。</p>'}</div></main>`;
 }
 function battleControls() {
   const b=shownBattle(),actual=state.combat;
   const plan=actual.plan.map(i=>CARD_TYPES[actual.hand[i]]);
-  return `<aside class="commands panel battle-commands"><div class="section-label">OPPONENT ${icon('eye')}</div><h3>${e(b.enemy.name)}</h3>${gauges(b.enemy,true)}<div class="enemy-stats">${abilityTiles(b.enemy)}</div><div class="command-divider"></div><div class="section-label">YOUR PLAN <b>${plan.length} / ${actual.limits.action}</b></div><div class="plan-list">${Array.from({length:actual.limits.action},(_,i)=>`<div class="plan-slot ${plan[i]?'filled':''}"><span>${i+1}</span>${plan[i]?`${icon(plan[i].icon)}<b>${plan[i].name}</b><div>${button('planUp','↑',{value:i,cls:'queue-button',disabled:i===0||playing||actual.resolved,title:'前に移動'})}${button('planRemove','×',{value:i,cls:'queue-button',disabled:playing||actual.resolved,title:'取り消す'})}</div>`:'<small>行動カードを選ぶ</small>'}</div>`).join('')}</div><div class="plan-cost"><span>ST消費</span><b>頭 ${plan.reduce((v,c)=>v+c.headCost,0)} / 体 ${plan.reduce((v,c)=>v+c.bodyCost,0)}</b></div>
-  ${actual.result?'':actual.resolved?button('nextRound','次のラウンドへ',{cls:'primary full',disabled:playing}):button('resolve',`${icon('action')}${playing?'行動を解決中…':'この行動列で実行'}`,{cls:'primary full',disabled:playing||!plan.length})}${!actual.resolved&&!actual.result?button('passRound','このラウンドは待機',{cls:'text-button full',disabled:playing||!!plan.length}):''}<p class="hint">同じ順番のカードを同時に解決。移動・回復・防御 → 攻撃。相打ちも起こる。</p><div class="quiet-note">６の出目は頭に当たる。<br>体HPが０でも、戦闘は続く。<br><br>離脱カードは距離５以上で有効。</div></aside>`;
+  return `<aside class="commands panel battle-commands"><div class="battle-plan-body"><div class="section-label">OPPONENT ${icon('eye')}</div><h3>${e(b.enemy.name)}</h3>${gauges(b.enemy,true)}<div class="enemy-stats">${abilityTiles(b.enemy)}</div><div class="command-divider"></div><div class="section-label">YOUR PLAN <span>${plan.length} / ${abilityTrigger('action',actual.limits.action,{context:'round'})}</span></div><div class="plan-list">${Array.from({length:actual.limits.action},(_,i)=>`<div class="plan-slot ${plan[i]?'filled':''}"><span>${i+1}</span>${plan[i]?`${icon(plan[i].icon)}<b>${plan[i].name}</b><div>${button('planUp','↑',{value:i,cls:'queue-button',disabled:i===0||playing||actual.resolved,title:'前に移動'})}${button('planRemove','×',{value:i,cls:'queue-button',disabled:playing||actual.resolved,title:'取り消す'})}</div>`:'<small>行動カードを選ぶ</small>'}</div>`).join('')}</div><div class="plan-cost"><span>ST消費</span><b>頭 ${plan.reduce((v,c)=>v+c.headCost,0)} / 体 ${plan.reduce((v,c)=>v+c.bodyCost,0)}</b></div>
+  </div><div class="battle-action-footer">${actual.result?'':actual.resolved?button('nextRound','次のラウンドへ',{cls:'primary full',disabled:playing}):button('resolve',`${icon('action')}${playing?'行動を解決中…':'この行動列で実行'}`,{cls:'primary full',disabled:playing||!plan.length})}${!actual.resolved&&!actual.result?button('passRound','このラウンドは待機',{cls:'text-button full',disabled:playing||!!plan.length}):''}<p class="hint">同じ順番のカードを同時に解決。移動・回復・防御 → 攻撃。相打ちも起こる。</p><div class="quiet-note">６の出目は頭に当たる。<br>体HPが０でも、戦闘は続く。<br><br>離脱カードは距離５以上で有効。</div></div></aside>`;
 }
 function deathScreen() {
   return `<main class="main-column death-screen"><span class="eyebrow">THE LAST PAGE</span><h2>あの家は、もう走らない。</h2><p>${state.day}日間、終わった世界を歩いた。<br>${state.visits}箇所を探索し、${state.kills}度の戦闘を生き抜いた。</p>${button('confirmNew','もう一度、旅に出る',{cls:'primary'})}<div class="journal-list">${state.log.slice(0,8).map(l=>`<article><time>${l.day}日目</time><p>${e(l.text)}</p></article>`).join('')}</div></main>`;
 }
 function render() {
+  hideAbilityTooltip();
   const dead=state.vitals.headHP<=0&&!state.combat;
   let main,controls;
   if(state.combat){main=battleMain();controls=battleControls();}
@@ -124,14 +127,14 @@ function render() {
   else if(tab==='inventory'){main=inventoryMain();controls=inventoryControls();}
   else if(tab==='journal'){main=journalMain();controls=exploreControls();}
   else {main=exploreMain();controls=exploreControls();}
-  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.1 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'この行動列で実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
+  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.1.1 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'この行動列で実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
 }
 function openDialog(title,body) {
   dialog.innerHTML=`<div class="dialog-header"><h2>${title}</h2>${button('closeDialog',icon('close'),{cls:'icon-button',title:'閉じる'})}</div><div class="dialog-body">${body}</div>`;
   if(!dialog.open)dialog.showModal();
 }
 function help() {
-  openDialog('この世界の歩き方',`<p>周辺を見渡す → 場所を探索 → 装備と資源を持ち帰る → 移動拠点を育てる。地図の隣接区画を選ぶと徒歩移動します。</p><h3>４つの能力</h3><table><tr><th>能力</th><th>戦闘</th><th>探索</th></tr><tr><td>知覚</td><td>敵の予定を公開する枚数</td><td>良い発見の確率</td></tr><tr><td>判断</td><td>引く手札の枚数</td><td>見つける探索箇所数</td></tr><tr><td>行動</td><td>実行できるカード枚数</td><td>調べられる回数</td></tr><tr><td>実効</td><td>攻撃の６面ダイス数</td><td>何かが見つかる確率</td></tr></table><p>頭HP→知覚、頭ST→判断、体HP→行動、体ST→実効。現在値÷最大値で比例減少し、切り上げ。知覚は最低０、ほかは最低１。</p><h3>行動列を組む</h3><p>相手は先に計画を決めます。知覚に応じて予定の先頭を公開。手札をタップした順に自分の計画を組み、実行を押します。同じ順番のカードは同時扱いで、移動・回復・防御の後、攻撃を解決します。</p><p>射程外の攻撃もSTを消費します。防御は同じ行動枠だけ有効。途中でSTが不足した行動は不発になります。使えるカードがないときは、カードを選ばず「このラウンドは待機」で次へ進めます（相手は行動します）。判断・行動・知覚はラウンド開始時、実効は各行動のST消費前に確定します。</p><h3>ダメージ</h3><p class="formula">HP = [max(0, 鋭さ − 硬さ) + 重さ ÷ 柔らかさ] × 出目<br>ST = [重さ ÷ 柔らかさ] × 出目</p><p>柔らかさは最低１。出目６は頭、それ以外は体。その部位の防具で計算します。体HPからあふれた分は頭HPへ。STの超過分は転送しません。頭HPが０で死亡。体HPとSTが０でも死亡しません。</p><p>防御はダメージを半減、渾身の一撃は1.4倍。例：鋭さ０、重さ２、柔らかさ２で［３・６］なら、体HP−３・頭HP−６（STもそれぞれ−３・−６）。</p><h3>生き残るコツ</h3><p>息を整える／頭を冷やすカードでSTを回復。頭の傷は医療品で手当て。拠点で食料と水を使って眠ると回復します。空腹・渇き80%以上では時間経過でSTが減ります。</p><p>エンジンを修理し、燃料を３つ集めると新しい街へ進めます。１つの装備に修飾子が複数つくことがあります。各修飾子に長所と短所があり、効果を合算します。</p>`);
+  openDialog('この世界の歩き方',`<p>周辺を見渡す → 場所を探索 → 装備と資源を持ち帰る → 移動拠点を育てる。地図で道路のつながった、光る施設を選ぶと徒歩移動します。</p><h3>４つの能力</h3><table><tr><th>能力</th><th>戦闘</th><th>探索</th></tr><tr><td>知覚</td><td>敵の予定を公開する枚数</td><td>良い発見の確率</td></tr><tr><td>判断</td><td>引く手札の枚数</td><td>見つける探索箇所数</td></tr><tr><td>行動</td><td>実行できるカード枚数</td><td>調べられる回数</td></tr><tr><td>実効</td><td>攻撃の６面ダイス数</td><td>何かが見つかる確率</td></tr></table><p>頭HP→知覚、頭ST→判断、体HP→行動、体ST→実効。現在値÷最大値で比例減少し、切り上げ。知覚は最低０、ほかは最低１。</p><h3>行動列を組む</h3><p>相手は先に計画を決めます。知覚に応じて予定の先頭を公開。手札をタップした順に自分の計画を組み、実行を押します。同じ順番のカードは同時扱いで、移動・回復・防御の後、攻撃を解決します。</p><p>射程外の攻撃もSTを消費します。防御は同じ行動枠だけ有効。途中でSTが不足した行動は不発になります。使えるカードがないときは、カードを選ばず「このラウンドは待機」で次へ進めます（相手は行動します）。判断・行動・知覚はラウンド開始時、実効は各行動のST消費前に確定します。</p><h3>ダメージ</h3><p class="formula">HP = [max(0, 鋭さ − 硬さ) + 重さ ÷ 柔らかさ] × 出目<br>ST = [重さ ÷ 柔らかさ] × 出目</p><p>柔らかさは最低１。出目６は頭、それ以外は体。その部位の防具で計算します。体HPからあふれた分は頭HPへ。STの超過分は転送しません。頭HPが０で死亡。体HPとSTが０でも死亡しません。</p><p>防御はダメージを半減、渾身の一撃は1.4倍。例：鋭さ０、重さ２、柔らかさ２で［３・６］なら、体HP−３・頭HP−６（STもそれぞれ−３・−６）。</p><h3>生き残るコツ</h3><p>息を整える／頭を冷やすカードでSTを回復。頭の傷は医療品で手当て。拠点で食料と水を使って眠ると回復します。空腹・渇き80%以上では時間経過でSTが減ります。</p><p>エンジンを修理し、燃料を３つ集めると新しい街へ進めます。１つの装備に修飾子が複数つくことがあります。各修飾子に長所と短所があり、効果を合算します。</p>`);
 }
 function menu() {
   openDialog('旅のセーブ',`<p>行動ごとに自動保存。再読み込みしても同じ手札・敵の予定から再開します。</p>${saveError?`<p class="error">${e(saveError)}</p>`:''}<div class="menu-actions">${button('exportSave',`${icon('save')}セーブを書き出す`,{cls:'primary full'})}<label class="file-button">${icon('bag')}セーブを読み込む<input id="import-save" type="file" accept=".json,application/json"></label>${button('confirmNew','最初から始める',{cls:'full danger-button'})}</div><p class="hint">旧版HTMLのセーブは使えません。新規開始・読み込みでは現在のセーブを置き換えます。</p>`);
@@ -146,7 +149,9 @@ async function playRound(pass=false) {
   frame=null;playing=false;render();
 }
 async function handleAction(event) {
-  const btn=event.target.closest('[data-action]');if(!btn||btn.disabled)return;
+  const btn=event.target.closest('[data-action]');if(!btn||btn.disabled||btn.getAttribute('aria-disabled')==='true')return;
+  if(btn.dataset.action==='explain'){toggleAbilityTooltip(btn);return;}
+  hideAbilityTooltip();
   const {action,value}=btn.dataset;
   if(playing&& !['sound','help','menu','closeDialog','exportSave'].includes(action))return;
   tone();
@@ -189,6 +194,33 @@ async function handleAction(event) {
   if(error){toast(error);changed=false;}
   if(changed)persist();render();
 }
+const abilityTooltip=document.createElement('div');
+abilityTooltip.id='ability-tooltip';abilityTooltip.className='ability-tooltip';abilityTooltip.setAttribute('role','tooltip');abilityTooltip.hidden=true;document.body.append(abilityTooltip);
+let tooltipTrigger=null,tooltipPinned=false;
+function hideAbilityTooltip(){abilityTooltip.hidden=true;tooltipTrigger=null;tooltipPinned=false;}
+function showAbilityTooltip(trigger){
+  const key=trigger.dataset.ability,context=trigger.dataset.context,b=shownBattle(),actual=state.combat,ex=state.exploration;
+  let actor=currentActor(),options={battle:!!actual,roundValue:actual&&key!=='execution'?actual.limits[key]:null};
+  if(context==='enemy')actor=b.enemy;
+  if(context==='round'){actor=actual.limitActor||actual.player;options={battle:true,frozen:true,missingSnapshot:!actual.limitActor,fixedValue:actual.limits[key]};}
+  if(context==='exploration'&&ex){actor=ex.abilityActor||playerActor(state);options={battle:false,frozen:true,missingSnapshot:!ex.abilityActor,fixedValue:ex.stats?.[key],remaining:key==='action'?ex.remaining:null};}
+  abilityTooltip.innerHTML=abilityHelp(actor,key,options);abilityTooltip.hidden=false;tooltipTrigger=trigger;
+  const r=trigger.getBoundingClientRect(),width=Math.min(326,innerWidth-24);abilityTooltip.style.width=`${width}px`;
+  const height=abilityTooltip.offsetHeight,left=Math.max(12,Math.min(r.left,innerWidth-width-12)),top=r.bottom+8+height<=innerHeight-12?r.bottom+8:Math.max(12,r.top-height-8);
+  abilityTooltip.style.left=`${left}px`;abilityTooltip.style.top=`${top}px`;
+}
+function toggleAbilityTooltip(trigger){if(tooltipPinned&&tooltipTrigger===trigger){hideAbilityTooltip();return;}showAbilityTooltip(trigger);tooltipPinned=true;}
+document.addEventListener('pointerover',event=>{const trigger=event.target.closest('[data-ability]');if(trigger&&!tooltipPinned&&trigger!==tooltipTrigger)showAbilityTooltip(trigger);});
+document.addEventListener('pointerout',event=>{if(!tooltipPinned&&event.target.closest('[data-ability]')&&!event.relatedTarget?.closest?.('[data-ability]'))hideAbilityTooltip();});
+document.addEventListener('focusin',event=>{const trigger=event.target.closest('[data-ability]');if(trigger&&!tooltipPinned)showAbilityTooltip(trigger);});
+document.addEventListener('focusout',event=>{if(!tooltipPinned&&event.target.closest('[data-ability]'))hideAbilityTooltip();});
+document.addEventListener('click',event=>{if(!event.target.closest('[data-ability],#ability-tooltip'))hideAbilityTooltip();});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape')hideAbilityTooltip();
+  if(['Enter',' '].includes(event.key)&&event.target.matches('.map-node')){event.preventDefault();handleAction(event).catch(err=>toast(err.message));}
+});
+window.addEventListener('resize',hideAbilityTooltip);
+document.addEventListener('scroll',event=>{if(event.target!==abilityTooltip)hideAbilityTooltip();},true);
 document.addEventListener('click',event=>handleAction(event).catch(err=>toast(`操作を完了できませんでした：${err.message}`)));
 document.addEventListener('change',async event=>{
   if(event.target.id!=='import-save')return;
