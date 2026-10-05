@@ -147,7 +147,11 @@ function battleControls() {
 function deathScreen() {
   return `<main class="main-column death-screen"><span class="eyebrow">THE LAST PAGE</span><h2>あの家は、もう走らない。</h2><p>${state.day}日間、終わった世界を歩いた。<br>${state.visits}箇所を探索し、${state.kills}度の戦闘を生き抜いた。</p>${button('confirmNew','もう一度、旅に出る',{cls:'primary'})}<div class="journal-list">${state.log.slice(0,8).map(l=>`<article><time>${l.day}日目</time><p>${e(l.text)}</p></article>`).join('')}</div></main>`;
 }
-function render() {
+function render({preserveExplorationScroll=false}={}) {
+  const scrollPositions=preserveExplorationScroll?['.explore-main','.spot-board','.search-hand','.board-commands'].map(selector=>{
+    const element=app.querySelector(selector);
+    return {selector,top:element?.scrollTop??0,left:element?.scrollLeft??0};
+  }):[];
   hideAbilityTooltip();
   const dead=state.vitals.headHP<=0&&!state.combat;
   let main,controls;
@@ -158,9 +162,13 @@ function render() {
   else if(tab==='inventory'){main=inventoryMain();controls=inventoryControls();}
   else if(tab==='journal'){main=journalMain();controls=exploreControls();}
   else {main=exploreMain();controls=exploreControls();}
-  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud ${state.combat?'combat-player-hud':''}">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.2.4 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${button('openSupplies','アイテム',{cls:'secondary mobile-supplies',disabled:playing||state.combat.resolved})}${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'行動を実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
+  app.innerHTML=`<div class="game-shell ${state.combat?'combat-mode':''}">${header()}${navigation()}<div class="mobile-hud ${state.combat?'combat-player-hud':''}">${gauges(currentActor(),true)}${abilityTiles(currentActor())}</div>${saveError?`<div class="save-warning" role="alert">${e(saveError)}</div>`:''}<div class="game-layout">${survivor()}${main}${controls}</div><footer class="footer"><span>走る家と、終わった世界。</span><span>EARLY BUILD 0.2.5 · ${state.region}つ目の街</span></footer>${state.combat&&!state.combat.result?`<div class="mobile-combat-dock"><span>${state.combat.plan.length} / ${state.combat.limits.action} 行動<small>${playing?'解決中':'距離 '+shownBattle().distance}</small></span>${button('openSupplies','アイテム',{cls:'secondary mobile-supplies',disabled:playing||state.combat.resolved})}${state.combat.resolved?button('nextRound','次のラウンドへ',{cls:'primary',disabled:playing}):button('resolve',playing?'解決中…':'行動を実行',{cls:'primary',disabled:playing||!state.combat.plan.length})}</div>`:''}</div>`;
   paintMap(app.querySelector('.painted-map'),state);
   positionResolution(app.querySelector('.battle-scene'));
+  for(const {selector,top,left} of scrollPositions){
+    const element=app.querySelector(selector);
+    if(element){element.scrollTop=top;element.scrollLeft=left;}
+  }
 }
 function openDialog(title,body) {
   if(exportSaveURL){URL.revokeObjectURL(exportSaveURL);exportSaveURL=null;}
@@ -260,7 +268,7 @@ async function handleAction(event) {
     default:return;
   }
   if(error){toast(error);changed=false;}
-  if(changed)persist();render();
+  if(changed)persist();render({preserveExplorationScroll:['chooseSpot','chooseSearchCard','toggleMap'].includes(action)});
 }
 const abilityTooltip=document.createElement('div');
 abilityTooltip.id='ability-tooltip';abilityTooltip.className='ability-tooltip';abilityTooltip.setAttribute('role','tooltip');abilityTooltip.hidden=true;document.body.append(abilityTooltip);
