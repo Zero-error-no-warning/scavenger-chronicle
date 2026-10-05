@@ -9,7 +9,7 @@ import { abilityHelp, abilityNames } from './ability-help.js?v=0.1.5';
 import { actionHelp, actionHelpActions } from './action-help.js?v=0.1.5';
 import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.1.5';
 const $=s=>document.querySelector(s);
-let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false,replaySkip=false,wakeReplay=null;
+let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false,replaySkip=false,wakeReplay=null,exportSaveURL=null;
 try {state=loadGame()||world.newGame();}catch(err){state=world.newGame();saveError=err.message;}
 const app=$('#app'),dialog=$('#dialog');
 const button=(action,label,{cls='',disabled=false,value='',title=''}={})=>`<button class="${cls}" data-action="${action}" data-value="${e(value)}" ${actionHelpActions.has(action)?`data-help-action="${action}" aria-describedby="ability-tooltip"`: ''} ${disabled?'disabled':''} ${title&&!actionHelpActions.has(action)?`title="${e(title)}"`:title&&cls.includes('icon-button')?`aria-label="${e(title)}"`:''}>${label}</button>`;
@@ -110,7 +110,7 @@ function battleMain() {
   const currentFrame=frame,visibleCount=playing?Math.min(actual.enemyPlan.length,Math.max(actual.limits.perception,currentFrame?.slot||0)):actual.resolved?actual.enemyPlan.length:Math.min(actual.limits.perception,actual.enemyPlan.length),hiddenCount=actual.enemyPlan.length-visibleCount,counts=enemyActionSummary(b);
   return `<main class="main-column battle-main"><div class="location-heading"><div><span class="eyebrow">${playing?'RESOLVING':ended?'AFTER THE DUST':'PLAN BEFORE YOU ACT'}</span><h2>${e(b.enemy.name)}</h2></div><span class="badge coral">ROUND ${actual.round}</span></div><section class="enemy-intents" aria-label="相手の予定：合計${actual.enemyPlan.length}行動"><div class="intents-heading"><b>相手の行動列 · 予定 ${actual.enemyPlan.length} 回</b><span>公開 ${visibleCount} 枚 / 伏せ ${hiddenCount} 枚</span>${abilityTrigger('perception',`知覚 ${actual.limits.perception}`,{context:'round'})}</div>${counts.known&&actual.resolved?`<p class="enemy-execution-count">実行 ${counts.executed} / 不発 ${counts.failed} / ${playing?'残り':'戦闘終了で未実行'} ${playing?counts.pending:counts.cancelled} 回</p>`:''}<div class="intents-row">${actual.enemyPlan.map((key,i)=>cardFace(key,{hidden:i>=visibleCount,small:true,number:i+1,status:b.enemyResolution?.[i],current:playing&&i===currentFrame?.slot-1})).join('')||'<p class="muted">相手はこのラウンド待機します。</p>'}</div></section><div class="scene-frame battle-scene">${scenery(state,'road',{combat:b})}<div class="distance-strip"><span>近い</span>${Array.from({length:7},(_,i)=>`<div class="distance-step ${i===b.distance?'active':''}">${i}</div>`).join('')}<span>遠い</span></div>${currentFrame?`<div class="resolution-caption" role="status"><b>行動 ${currentFrame.slot}</b><span>あなた：${CARD_TYPES[currentFrame.playerCard]?.name||'待機'} / 相手：${CARD_TYPES[currentFrame.enemyCard]?.name||'待機'}<small class="phase-label"> · ${phaseNames[currentFrame.phase]}</small></span>${button('skipReplay','演出をスキップ',{cls:'replay-skip'})}</div>${renderResolution(currentFrame)}`:''}</div>
   ${ended?`<div class="battle-result"><span class="eyebrow">${actual.result==='victory'?'STILL ALIVE':actual.result==='escaped'?'LIVE TO SEE TOMORROW':'THE ROAD ENDS HERE'}</span><h2>${{victory:'まだ、生きている。',escaped:'走り抜けた。',defeat:'旅は、ここまで。',mutual:'どちらも、戻れなかった。'}[actual.result]}</h2><p>${actual.result==='victory'?'傷を手当てして、家に帰ろう。':'勝つことだけが、生き残ることではなかった。'}</p>${button('finishCombat',actual.result==='victory'||actual.result==='escaped'?'探索に戻る':'旅の記録へ',{cls:'primary',disabled:playing})}</div>`:`<div class="hand-heading"><span>あなたの手札 ${abilityTrigger('judgment',actual.hand.length,{context:'round'})}</span><small>タップした順に並ぶ。もう一度タップで取り消し。</small></div><div class="hand" aria-label="行動カードの手札">${actual.hand.map((key,i)=>cardFace(key,{index:i,selected:actual.plan.includes(i),disabled:playing||actual.resolved||(!actual.plan.includes(i)&&actual.plan.length>=actual.limits.action)})).join('')}</div>`}
-  <div class="battle-log" aria-live="polite">${(currentFrame?.messages||actual.history.slice(-4)).map(message=>`<p>${e(message)}</p>`).join('')||'<p>相手の予定を読み、自分の行動列を組もう。</p>'}</div></main>`;
+  <div class="battle-log" aria-live="polite">${(currentFrame&&currentFrame.phase!=='impact'?[`行動 ${currentFrame.slot}：${phaseNames[currentFrame.phase]}`]:currentFrame?.messages||actual.history.slice(-4)).map(message=>`<p>${e(message)}</p>`).join('')||'<p>相手の予定を読み、自分の行動列を組もう。</p>'}</div></main>`;
 }
 function battleControls() {
   const b=shownBattle(),actual=state.combat;
@@ -136,6 +136,7 @@ function render() {
   positionResolution(app.querySelector('.battle-scene'));
 }
 function openDialog(title,body) {
+  if(exportSaveURL){URL.revokeObjectURL(exportSaveURL);exportSaveURL=null;}
   dialog.innerHTML=`<div class="dialog-header"><h2>${title}</h2>${button('closeDialog',icon('close'),{cls:'icon-button',title:'閉じる'})}</div><div class="dialog-body">${body}</div>`;
   if(!dialog.open)dialog.showModal();
 }
@@ -211,7 +212,7 @@ async function handleAction(event) {
     case 'sound':sound=!sound;changed=false;break;
     case 'confirmNew':openDialog('新しい旅に出ますか？',`<p>現在の旅を上書きします。残したい場合は先にセーブを書き出してください。</p><div class="menu-actions">${button('exportSave','現在のセーブを書き出す',{cls:'full'})}${button('newGame','新しい旅を始める',{cls:'primary full'})}</div>`);return;
     case 'newGame':state=world.newGame();tab='explore';driving=false;dialog.close();break;
-    case 'exportSave':{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`scavenger-day-${state.day}.json`;a.hidden=true;dialog.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
+    case 'exportSave':{const json=JSON.stringify(state,null,2),url=URL.createObjectURL(new Blob([json],{type:'application/json'}));openDialog('セーブを書き出す',`<p>ダウンロードが始まらない場合は、下のリンクから保存できます。</p><a class="file-button" href="${url}" download="scavenger-day-${state.day}.json">JSONファイルを保存</a><details class="save-json"><summary>セーブデータを表示</summary><textarea readonly aria-label="セーブデータ" rows="8" style="width:100%;font-size:14px">${e(json)}</textarea></details>`);exportSaveURL=url;dialog.querySelector('[download]').click();return;}
     default:return;
   }
   if(error){toast(error);changed=false;}
