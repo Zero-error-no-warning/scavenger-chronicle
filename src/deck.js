@@ -1,5 +1,5 @@
-import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.0-5';
-import { shuffled } from './random.js?v=0.2.0-5';
+import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.1';
+import { shuffled } from './random.js?v=0.2.1';
 
 export const refId=ref=>`${ref.key}:${ref.source||''}`;
 export function cardPool(s) {

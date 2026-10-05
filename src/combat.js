@@ -1,8 +1,8 @@
-import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.0-5';
-import { equipped } from './items.js?v=0.2.0-5';
-import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.0-5';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.1';
+import { equipped } from './items.js?v=0.2.1';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.1';
 
-import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.0-5';
+import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.1';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{

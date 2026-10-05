@@ -1,12 +1,12 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js?v=0.2.0-5';
-import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.0-5';
-import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.0-5';
-import { carriedWeight } from './items.js?v=0.2.0-5';
-import { abilityNames } from './ability-help.js?v=0.2.0-5';
-import { round } from './random.js?v=0.2.0-5';
-import { escapeHTML as e } from './art.js?v=0.2.0-5';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js?v=0.2.1';
+import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.1';
+import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.1';
+import { carriedWeight } from './items.js?v=0.2.1';
+import { abilityNames } from './ability-help.js?v=0.2.1';
+import { round } from './random.js?v=0.2.1';
+import { escapeHTML as e } from './art.js?v=0.2.1';
 
-import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.0-5';
+import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.1';
 export const actionHelpActions=new Set(['redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
 const n=value=>Number(value.toFixed(2));
 const row=(label,value)=>`<li><span>${e(label)}</span><b>${e(String(value))}</b></li>`;

@@ -1,9 +1,9 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.0-5';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.0-5';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.0-5';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.0-5';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.1';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.1';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.1';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.1';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.0-5';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.1';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
@@ -96,7 +96,11 @@ export function survey(s){
   if(!free(s))return '今は周辺を調べられません。';
   const node=s.world[s.location],a=stats(s);node.discovered||=[];
   const unknown=location(s).spots.map((_,i)=>i).filter(i=>!node.used.includes(i)&&!node.discovered.includes(i));
-  if(!unknown.length)return node.discovered.some(i=>!node.used.includes(i))?'未解決の場所があります。カードを引き直して挑戦できます。':'ここは調べ尽くしました。';
+  const known=node.discovered.some(i=>!node.used.includes(i));
+  if(!unknown.length){
+    if(known&&!s.exploration?.hand.length)return redraw(s);
+    return known?'未解決の場所があります。カードを引き直して挑戦できます。':'ここは調べ尽くしました。';
+  }
   if(!a.perception)return '知覚が0のため新しい箇所を発見できません。まず頭の傷を手当てしてください。';
   releaseExploration(s);const risk=Math.max(encounterRisk(s),encounterRisk(s,'search',(s.hour+1)%24));
   const found=shuffled(s,unknown).slice(0,a.perception);node.discovered.push(...found);searchSession(s);

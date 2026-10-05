@@ -1,0 +1,24 @@
+/* Status belongs beside that actor's cards. The distance track keeps both pawns visible. */
+.mobile-battle-status{display:none}
+.distance-board{flex-shrink:0;padding:6px 9px;margin-top:7px;border:1px solid #b0b498;border-radius:9px;background:#eee5cc;color:#354f3c}
+.distance-heading{display:flex;justify-content:space-between;gap:7px;font-size:14px;line-height:1.4;margin-bottom:3px}
+.distance-heading span{color:#687158}
+.distance-track{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.distance-cell{height:58px;position:relative;display:flex;align-items:flex-end;justify-content:center;gap:2px;border:1px solid #b9bfa4;border-radius:6px;background:#e2e0cb}
+.distance-cell.between{background:#d3dec0;border-color:#829774}.distance-cell.enemy-position{border-color:#b77454;background:#efd4b6}
+.distance-number{position:absolute;top:0;left:4px;font-size:12px;color:#56644b}
+.distance-pawn{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;height:46px;flex:0 1 32px}
+.distance-pawn>.painted-character{height:33px;width:22px}.distance-pawn>.painted-enemy{width:31px;height:31px}.distance-pawn small{font-size:12px;line-height:1.1;font-weight:700;white-space:nowrap}
+@media(max-width:720px){
+ .combat-mode>.combat-player-hud,.combat-mode .survivor,.battle-commands .desktop-enemy-status{display:none}
+ .mobile-battle-status{display:block;border:1px solid #b88c71;border-radius:10px;padding:9px 10px;margin-bottom:9px;background:#eddac4;color:#394637}
+ .mobile-battle-status.player-status{border-color:#76997b;background:#deead1;margin:10px 0 0}
+ .mobile-battle-status>b{display:block;font-size:15px;margin-bottom:6px}
+ .mobile-battle-status .gauges{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 13px}
+ .mobile-battle-status .gauge-top{font-size:14px;margin-bottom:3px}.mobile-battle-status .gauge-top b{font-size:15px}.mobile-battle-status .gauge-top small{font-size:12px}.mobile-battle-status .gauge-top .icon{display:none}
+ .mobile-battle-status .abilities{margin-top:7px;gap:5px}.mobile-battle-status .ability{display:flex;flex-direction:row;justify-content:center;align-items:center;gap:5px;padding:3px 0;border:0}.mobile-battle-status .ability .icon{display:none}.mobile-battle-status .ability span{font-size:13px;margin:0}.mobile-battle-status .ability strong{font-size:19px}
+ .battle-main .location-heading{margin-bottom:6px}.battle-main .battle-scene{height:220px;min-height:0}.battle-main .battle-scene .landscape{height:100%;min-height:0;aspect-ratio:auto}
+ .combat-art .scene-enemy{height:48%;bottom:46%}.combat-art .scene-player{height:51%;bottom:2%}
+ .distance-cell{height:62px}.distance-board{padding:7px 8px}.distance-pawn{height:49px}
+ .deck-entry .card-art{display:flex}
+}

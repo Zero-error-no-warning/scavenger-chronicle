@@ -1,6 +1,6 @@
-import { CARD_TYPES } from './data.js?v=0.2.0-5';
-import { abilities } from './combat.js?v=0.2.0-5';
-import { cardArt, escapeHTML as e } from './art.js?v=0.2.0-5';
+import { CARD_TYPES } from './data.js?v=0.2.1';
+import { abilities } from './combat.js?v=0.2.1';
+import { cardArt, escapeHTML as e } from './art.js?v=0.2.1';
 
 export function replayPhases(frame,{reduced=false}={}) {
   if(reduced)return [{name:'impact',duration:240}];
@@ -54,14 +54,14 @@ export function positionResolution(scene) {
   const bounds=scene.getBoundingClientRect(),centers={};
   for(const side of ['player','enemy']) {
     const actor=scene.querySelector(`.scene-${side}`)?.getBoundingClientRect();
-    centers[side]=actor?actor.left+actor.width/2-bounds.left:bounds.width*(side==='player'?.25:.75);
+    centers[side]={x:actor?actor.left+actor.width/2-bounds.left:bounds.width*(side==='player'?.25:.75),y:actor?actor.top+actor.height/2-bounds.top:bounds.height*.52};
   }
-  const middle=(centers.player+centers.enemy)/2;
+  const middle={x:(centers.player.x+centers.enemy.x)/2,y:(centers.player.y+centers.enemy.y)/2};
   for(const card of cinema.querySelectorAll('.duel-card')) {
     const side=card.classList.contains('player')?'player':'enemy',other=side==='player'?'enemy':'player',route=card.dataset.route;
-    const target=route==='body'?centers[other]:route==='clash'?middle:route==='miss'?(centers[side]+middle)/2:centers[side];
-    card.style.setProperty('--from-x',`${centers[side]}px`);card.style.setProperty('--to-x',`${target}px`);
+    const target=route==='body'?centers[other]:route==='clash'?middle:route==='miss'?{x:(centers[side].x+middle.x)/2,y:(centers[side].y+middle.y)/2}:centers[side];
+    for(const axis of ['x','y']){card.style.setProperty(`--from-${axis}`,`${centers[side][axis]}px`);card.style.setProperty(`--to-${axis}`,`${target[axis]}px`);}
   }
-  for(const hit of cinema.querySelectorAll('.hit-burst'))hit.style.left=`${centers[hit.dataset.target]}px`;
+  for(const hit of cinema.querySelectorAll('.hit-burst')){hit.style.left=`${centers[hit.dataset.target].x}px`;hit.style.top=`${centers[hit.dataset.target].y}px`;}
   for(const side of ['player','enemy'])scene.querySelector(`.scene-${side}`)?.classList.toggle('actor-hit',cinema.dataset.phase==='impact'&&scene.querySelector(`.hit-burst.${side}`)!==null);
 }

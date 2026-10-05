@@ -86,3 +86,13 @@ test('長い探索・引き直し・戦闘・移動でも共有デッキの保�
     }
   }
 });
+
+test('到着では手札を引かず、再訪した発見済み区画も見渡し操作で探索を再開する',()=>{
+  const s=fresh();s.baseResources.fuel=20;s.world[7].discovered=[0,1,2,3,4,5];s.world[7].used=[1];
+  const known=[...s.world[7].discovered],pile=structuredClone(s.deckState);
+  assert.equal(move(s,6,true),null);assert.equal(s.exploration,null);assert.deepEqual(s.deckState,pile);
+  assert.equal(move(s,7,true),null);assert.equal(s.exploration,null);assert.deepEqual(s.world[7].discovered,known);
+  s.rng=1000000;const hour=s.hour;assert.equal(survey(s),null);assert.equal(s.combat,null);
+  assert.equal(s.hour,hour+1);assert.equal(s.exploration.hand.length,s.exploration.stats.judgment);
+  assert.deepEqual(s.exploration.spots.map(x=>x.index),[0,2,3,4,5]);assert.equal(pileError(s),null);saved(s);
+});
