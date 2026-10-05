@@ -1,4 +1,4 @@
-import { equipped } from './items.js';
+import { equipped } from './items.js?v=0.1.5';
 export const escapeHTML = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const e=escapeHTML;
 // Interface symbols are typography; game illustration uses generated rasters.
@@ -57,5 +57,6 @@ export function cardArt(key) {
 export function scenery(state,kind='road',{combat=null,camp=false}={}) {
   const i=Math.max(0,locationKinds.indexOf(kind)),distance=combat?.distance??6;
   const playerLeft=combat?12+(6-distance)*3:camp?12:9,enemyRight=12+(6-distance)*3;
-  return `<div class="landscape painted-scene ${combat?'combat-art':''} ${camp?'camp-art':''}" role="group" aria-label="${combat?'戦闘の場面':camp?'移動拠点と主人公':'探索の場面'}"><span class="scene-backdrop">${atlas('backgrounds',i%3,Math.floor(i/3),3,3,'scene-background')}</span><span class="scene-shade" aria-hidden="true"></span>${combat?`<span class="scene-enemy" style="right:${enemyRight}%">${enemyArt(combat.enemy.visual)}</span>`:`<span class="scene-van">${vanArt(state)}</span>`}<span class="scene-player" style="left:${playerLeft}%">${character(state)}</span></div>`;
+  const here=state.location===state.baseLocation;
+  return `<div class="landscape painted-scene ${combat?'combat-art':''} ${camp?'camp-art':''}" role="group" aria-label="${combat?'戦闘の場面':camp&&here?'移動拠点と主人公':'探索の場面'}"><span class="scene-backdrop">${atlas('backgrounds',i%3,Math.floor(i/3),3,3,'scene-background')}</span><span class="scene-shade" aria-hidden="true"></span>${combat?`<span class="scene-enemy" style="right:${enemyRight}%">${enemyArt(combat.enemy.visual)}</span>`:here?`<span class="scene-van">${vanArt(state)}</span>`:''}<span class="scene-player" style="left:${playerLeft}%">${character(state)}</span></div>`;
 }

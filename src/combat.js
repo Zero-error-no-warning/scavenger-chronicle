@@ -1,6 +1,6 @@
-import { BALANCE, BASE_DECK, CARD_TYPES, ENEMIES } from './data.js';
-import { equipped } from './items.js';
-import { clamp, pick, random, round, shuffled } from './random.js';
+import { BALANCE, BASE_DECK, CARD_TYPES, ENEMIES } from './data.js?v=0.1.5';
+import { equipped } from './items.js?v=0.1.5';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.1.5';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
@@ -53,6 +53,7 @@ export function prepareRound(state,b) {
   b.limitActor=structuredClone(b.player);
   b.hand=draw(state,b,'player',b.limits.judgment);
   const enemyStats=abilities(b.enemy);
+  b.enemyLimits={...enemyStats};b.enemyLimitActor=structuredClone(b.enemy);
   const candidates=draw(state,b,'enemy',enemyStats.judgment);
   b.enemyPlan=[];
   let distance=b.distance, brain=b.enemy.headST, body=b.enemy.bodyST;
@@ -77,6 +78,7 @@ export function prepareRound(state,b) {
     distance=clamp(distance+(card.move||0),0,BALANCE.maxDistance);
   }
   b.plan=[];
+  b.enemyResolution=b.enemyPlan.map(()=>'pending');
 }
 export function inRange(card,actor,distance) {
   const [min,max]=card.range==='weapon'?[actor.weapon.minRange,actor.weapon.maxRange]:(card.range||[0,0]);
@@ -122,8 +124,10 @@ export function resolveRound(state,b,{pass=false}={}) {
   if(error)throw new Error(error);
   const playerPlan=b.plan.map(i=>b.hand[i]);
   const enemyPlan=[...b.enemyPlan];
+  b.enemyResolution=enemyPlan.map(()=>'pending');
   const frames=[];
   for(let slot=0;slot<Math.max(1,playerPlan.length,enemyPlan.length);slot++) {
+    const before={distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),enemyResolution:[...(b.enemyResolution||b.enemyPlan.map(()=>'pending'))]};
     const messages=pass&&slot===0?['あなた：このラウンドは待機。']:[],commands=[];
     for(const [side,plan] of [['player',playerPlan],['enemy',enemyPlan]]) {
       const actor=b[side], key=plan[slot],card=CARD_TYPES[key];
@@ -153,6 +157,13 @@ export function resolveRound(state,b,{pass=false}={}) {
       attacks.push({...c,targetSide,dice,guard:commands.some(x=>x.side===targetSide&&x.card.kind==='guard')});
     }
     // Both attacks were declared while both combatants were alive; mutual defeat is valid.
+    const ready={distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy)};
+    const status=side=>{
+      if(!(side==='player'?playerPlan:enemyPlan)[slot])return 'wait';
+      const command=commands.find(c=>c.side===side);
+      if(!command)return 'failed';
+      return command.card.kind==='attack'&&!attacks.some(a=>a.side===side)?'miss':'played';
+    };
     const effects=[];
     for(const a of attacks) {
       const damage=damageDice(b[a.targetSide],a.card.ownWeapon||a.actor.weapon,a.dice,a.card.power,a.guard);
@@ -165,9 +176,12 @@ export function resolveRound(state,b,{pass=false}={}) {
       if(b.distance>=5) {b.result='escaped';messages.push('背を向け、走り抜けた。');}
       else messages.push('離脱には距離５以上が必要。');
     }
+    b.enemyResolution ||= b.enemyPlan.map(()=>'pending');
+    if(slot<b.enemyPlan.length)b.enemyResolution[slot]=status('enemy');
+    if(b.result)b.enemyResolution=b.enemyResolution.map(value=>value==='pending'?'cancelled':value);
     b.history.push(...messages);
     b.history=b.history.slice(-60);
-    frames.push({slot:slot+1,distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),messages,effects,result:b.result,playerCard:playerPlan[slot],enemyCard:enemyPlan[slot]});
+    frames.push({slot:slot+1,before,ready,enemyResolution:[...b.enemyResolution],playerStatus:status('player'),enemyStatus:status('enemy'),distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),messages,effects,result:b.result,playerCard:playerPlan[slot],enemyCard:enemyPlan[slot]});
     if(b.result)break;
   }
   for(const key of ['headHP','bodyHP','headST','bodyST'])state.vitals[key]=b.player[key];

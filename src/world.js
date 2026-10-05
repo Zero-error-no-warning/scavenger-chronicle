@@ -1,7 +1,7 @@
-import { BALANCE, LOCATIONS, MODULES } from './data.js';
-import { random, pick, shuffled, clamp, round } from './random.js';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js';
-import { abilities, playerActor, beginCombat } from './combat.js';
+import { BALANCE, LOCATIONS, MODULES } from './data.js?v=0.1.5';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.1.5';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.1.5';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.1.5';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
@@ -22,6 +22,12 @@ export function createWorld(s) {
 export function log(s,message) {s.log.unshift({day:s.day,hour:s.hour,text:message});s.log=s.log.slice(0,80);}
 export const atBase=s=>s.location===s.baseLocation;
 export const location=s=>LOCATIONS.find(x=>x.id===s.world[s.location].locId);
+export function explorationProgress(s,id=s.location) {
+  const node=s.world[id],loc=LOCATIONS.find(x=>x.id===node.locId);
+  const used=new Set(node.used);
+  const done=loc.spots.map((name,index)=>({name,index})).filter(spot=>used.has(spot.index));
+  return {done,total:loc.spots.length,remaining:loc.spots.length-done.length};
+}
 export const stats=s=>abilities(playerActor(s));
 export function neighbors(id) {
   const x=id%5,y=Math.floor(id/5);
@@ -60,13 +66,15 @@ export function survey(s) {
   if(s.exploration?.remaining>0)return '見つけた探索箇所を調べるか、探索を終えてください。';
   const spots=shuffled(s,loc.spots.map((name,index)=>({name,index})).filter(x=>!node.used.includes(x.index))).slice(0,a.judgment);
   if(!spots.length)return 'ここは調べ尽くしました。別の場所へ移動しましょう。';
-  s.exploration={spots,remaining:a.action,stats:{...a},abilityActor:playerActor(s)};
+  s.exploration={location:s.location,spots,remaining:a.action,stats:{...a},abilityActor:playerActor(s)};
   log(s,`${spots.length}箇所を発見。あと${a.action}回調べられる。`);
   return null;
 }
 export function searchSpot(s,index) {
   if(!free(s))return '戦闘中は探索できません。';
   const ex=s.exploration,spot=ex?.spots.find(x=>x.index===index);
+  if(ex?.location!==undefined&&ex.location!==s.location)return 'この探索候補は別の区画のものです。周辺を見渡してください。';
+  if(s.world[s.location].used.includes(index))return 'この箇所は調査済みです。';
   if(!spot||ex.remaining<=0)return '探索できません。';
   ex.spots=ex.spots.filter(x=>x.index!==index);ex.remaining--;
   s.world[s.location].used.push(index);advanceTime(s,1);s.visits++;
@@ -91,6 +99,10 @@ export function searchSpot(s,index) {
   if(!ex.spots.length)ex.remaining=0;
   if(random(s)<loc.danger) {beginCombat(s);log(s,'物音。こちらに気づいた何かが、近づいてくる。');}
   return null;
+}
+export function endSearch(s) {
+  if(!free(s))return '今は探索を終了できません。';
+  s.exploration=null;return null;
 }
 export function deposit(s) {
   if(!atBase(s)||!free(s))return '拠点に戻ってください。';

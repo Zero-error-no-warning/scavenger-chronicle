@@ -1,10 +1,10 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js';
-import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js';
-import { atBase, location, neighbors } from './world.js';
-import { carriedWeight } from './items.js';
-import { abilityNames } from './ability-help.js';
-import { round } from './random.js';
-import { escapeHTML as e } from './art.js';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js?v=0.1.5';
+import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.1.5';
+import { atBase, location, neighbors, explorationProgress } from './world.js?v=0.1.5';
+import { carriedWeight } from './items.js?v=0.1.5';
+import { abilityNames } from './ability-help.js?v=0.1.5';
+import { round } from './random.js?v=0.1.5';
+import { escapeHTML as e } from './art.js?v=0.1.5';
 
 export const actionHelpActions=new Set(['survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
 const n=value=>Number(value.toFixed(2));
@@ -30,7 +30,7 @@ export function actionHelp(state,action,value='',{driving=false}={}) {
   const chance=(key,stats=a)=>n(Math.min(.95,(key==='good'?BALANCE.search.goodBase: BALANCE.search.findBase)+stats[key==='good'?'perception':'execution']*(key==='good'?BALANCE.search.goodPerception:BALANCE.search.findExecution))*100);
   const unavailable=state.combat?'戦闘中はこの操作を使えません。':state.vitals.headHP<=0?'旅が終わっています。':'';
   if(action==='survey'){
-    const remaining=loc.spots.length-state.world[state.location].used.length;
+    const remaining=explorationProgress(state).remaining;
     return box('周辺を見渡す',`<p>探索候補を見つけ、調べられる回数を決めます。</p>${list([row('発見できる箇所',`${Math.min(a.judgment,remaining)} 箇所（未探索 ${remaining} 箇所）`),row('調べられる回数',`${a.action} 回`),...abilityRows(actor,['judgment','action'])])}${note('時間・STは消費しません。回数は見渡した時点で確定します。知覚・実効は、その後に各場所を調べる時の発見に影響します。')}${blocked(unavailable|| (ex?.remaining>0?'現在の探索を終えるか、切り上げてから見渡せます。':!remaining?'ここは調べ尽くしました。別の場所へ移動してください。':''))}`);
   }
   if(action==='search'){
@@ -38,7 +38,7 @@ export function actionHelp(state,action,value='',{driving=false}={}) {
     if(state.hunger+2>=80)searchActor.bodyST=round(Math.max(0,searchActor.bodyST-1));
     if(state.thirst+3>=80)searchActor.headST=round(Math.max(0,searchActor.headST-1));
     const searchStats=abilities(searchActor);
-    return box(spot?.name||'場所を調べる',`${list([row('探索回数',`1 回消費 / 残り ${ex?.remaining??0} 回`),row('時間','1 時間'),row('ST消費','頭 1 / 体 2'),row('何かが見つかる確率',`${chance('find',searchStats)}%`),row('良い発見の判定',`${chance('good',searchStats)}%`),row('敵に遭遇する確率',`${n(loc.danger*100)}%`),...abilityRows(searchActor,['perception','execution'])])}${note('確率はその場所を調べる時の能力で判定。時間経過による空腹・渇きの疲労を含み、探索のST消費はその後です。良い発見の判定と、何かが見つかる判定は別々に行います。持ち帰れる量は携行重量に制限されます。')}${blocked(unavailable||(!spot||!ex?.remaining?'この場所は今は調べられません。':''))}`);
+    return box(spot?.name||'場所を調べる',`${list([row('探索回数',`1 回消費 / 残り ${ex?.remaining??0} 回`),row('時間','1 時間'),row('ST消費','頭 1 / 体 2'),row('何かが見つかる確率',`${chance('find',searchStats)}%`),row('良い発見の判定',`${chance('good',searchStats)}%`),row('敵に遭遇する確率',`${n(loc.danger*100)}%`),...abilityRows(searchActor,['perception','execution'])])}${note('確率はその場所を調べる時の能力で判定。時間経過による空腹・渇きの疲労を含み、探索のST消費はその後です。良い発見の判定と、何かが見つかる判定は別々に行います。持ち帰れる量は携行重量に制限されます。')}${blocked(unavailable||(!spot||!ex?.remaining||state.world[state.location].used.includes(Number(value))?'この場所は調査済みか、今は調べられません。':''))}`);
   }
   if(action==='endSearch')return box('探索を切り上げる',`<p>残りの探索回数を終了します。未探索の場所は、もう一度見渡すと候補になります。</p>${note('時間・STは消費しません。')}`);
   if(action==='rest'){
@@ -53,7 +53,7 @@ export function actionHelp(state,action,value='',{driving=false}={}) {
   if(action==='move'||action==='driving'){
     const fuel=state.modules.includes('engine')?1:2,target=state.world[Number(value)],withBase=action==='driving'||driving;
     const name=action==='move'&&target?.seen?LOCATIONS.find(l=>l.id===target.locId).name:action==='driving'?'拠点を動かす':'地図を移動';
-    return box(name,`<p>${withBase?'拠点と一緒に、道路でつながった施設へ移動します。':'徒歩で移動します。拠点は現在の位置に残ります。'}</p>${list([row('時間','1 時間'),row('体ST消費','1'),row('燃料',withBase?`${fuel} 消費 / 在庫 ${supplies('fuel')}`:'消費なし')])}${action==='driving'?note(driving?'もう一度押すと徒歩移動に切り替えます。':'このボタンで拠点移動に切り替え、地図の光る施設を選ぶと移動します。切り替え自体は物資を消費しません。'):note('現在の探索は終了します。')}${blocked(unavailable||(withBase&&!home?'まず拠点に戻ってください。':action==='move'&&!neighbors(state.location).includes(Number(value))?'道路で直接つながった施設だけ選べます。':withBase&&supplies('fuel')<fuel?'燃料が足りません。':''))}`);
+    return box(name,`<p>${withBase?'拠点と一緒に、道路でつながった施設へ移動します。':'徒歩で移動します。拠点は現在の位置に残ります。'}</p>${list([row('区画',action==='move'&&target?`${Number(value)+1}（調査済み ${explorationProgress(state,Number(value)).done.length} / 6）`:`${state.location+1} → 地図で選択`),row('時間','1 時間'),row('体ST消費','1'),row('燃料',withBase?`${fuel} 消費 / 在庫 ${supplies('fuel')}`:'消費なし')])}${action==='driving'?note(driving?'もう一度押すと徒歩移動に切り替えます。':'このボタンで拠点移動に切り替え、地図の光る施設を選ぶと移動します。切り替え自体は物資を消費しません。'):note('現在の探索は終了します。')}${blocked(unavailable||(withBase&&!home?'まず拠点に戻ってください。':action==='move'&&!neighbors(state.location).includes(Number(value))?'道路で直接つながった施設だけ選べます。':withBase&&supplies('fuel')<fuel?'燃料が足りません。':''))}`);
   }
   if(action==='encounter')return box('近くの気配を追う',`<p>野犬との戦闘を自分から始めます。</p>${note('時間・物資は開始時に消費しません。戦闘中は頭HPが0になると旅が終わります。')}${blocked(unavailable)}`);
   if(action==='deposit')return box('資源を全部しまう',`<p>携行している資源をすべて拠点へ移します。装備は移しません。</p>${note('時間・物資は消費しません。携行重量が軽くなります。')}${blocked(unavailable||(!home?'拠点でのみ使えます。':''))}`);

@@ -1,4 +1,4 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, RESOURCES, MODIFIERS } from './data.js';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, RESOURCES, MODIFIERS } from './data.js?v=0.1.5';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
@@ -21,15 +21,30 @@ export function validateSave(s) {
   if(!arr(s.world,15)||s.world.length!==15||s.world.some((node,i)=>node.id!==i||!LOCATIONS.some(x=>x.id===node.locId)||!num(node.visits)||typeof node.seen!=='boolean'||!arr(node.used,6)||node.used.some(x=>!Number.isInteger(x)||!num(x,0,5))))fail();
   if(!arr(s.log,80)||s.log.some(x=>!text(x.text)||!num(x.day)||!num(x.hour,0,23)))fail();
   if(s.exploration&&(!arr(s.exploration.spots,6)||s.exploration.spots.some(x=>!text(x.name)||!num(x.index,0,5)||!Number.isInteger(x.index))||!num(s.exploration.remaining,0,30)))fail();
+  if(s.exploration?.location!==undefined&&(!num(s.exploration.location,0,14)||!Number.isInteger(s.exploration.location)))fail();
   if(s.combat) {
     const b=s.combat;
-    for(const actor of [b.player,b.enemy,...(b.limitActor?[b.limitActor]:[])]) {
+    for(const actor of [b.player,b.enemy,...(b.limitActor?[b.limitActor]:[]),...(b.enemyLimitActor?[b.enemyLimitActor]:[])]) {
       if(!actor||!text(actor.name)||!text(actor.visual)||!actor.max||!actor.base||gaugeKeys.some(k=>!num(actor.max[k],1,1000)||!num(actor[k],0,actor.max[k]))||statKeys.some(k=>!num(actor.base[k],-20,30)))fail();
       if(!actor.weapon||!num(actor.weapon.sharpness,0,50)||!num(actor.weapon.weight,.1,50)||!num(actor.weapon.minRange,0,6)||!num(actor.weapon.maxRange,0,6))fail();
       if(!actor.armor||['head','body'].some(k=>!actor.armor[k]||!num(actor.armor[k].hardness,0,50)||!num(actor.armor[k].softness,1,50)))fail();
     }
     for(const key of ['hand','playerDeckSource','enemyDeckSource','playerDeck','enemyDeck','enemyPlan'])if(!arr(b[key],100)||b[key].some(k=>!CARD_TYPES[k]))fail();
+    if(b.enemyLimits&&statKeys.some(k=>!num(b.enemyLimits[k],0,30)))fail();
+    if(b.enemyResolution&&(!arr(b.enemyResolution,100)||b.enemyResolution.length!==b.enemyPlan.length||b.enemyResolution.some(value=>!isId(value,['pending','played','miss','failed','cancelled']))))fail();
     if(!arr(b.plan,30)||b.plan.some(x=>!Number.isInteger(x)||!num(x,0,b.hand.length-1))||new Set(b.plan).size!==b.plan.length||!num(b.distance,0,6)||!num(b.round,1,1e6)||!arr(b.history,60)||b.history.some(x=>!text(x))||!text(b.text)||!b.limits||statKeys.some(k=>!num(b.limits[k],0,30))||!isId(b.result,[null,'victory','defeat','mutual','escaped'])||typeof b.resolved!=='boolean')fail();
+  }
+  // Older saves have no exploration location. Keep used spots authoritative and
+  // remove stale candidates without granting new actions or consuming RNG.
+  for(const node of s.world)node.used=[...new Set(node.used)];
+  if(s.exploration) {
+    if(s.exploration.location!==undefined&&s.exploration.location!==s.location)s.exploration=null;
+    else {
+      const ex=s.exploration,seen=new Set(s.world[s.location].used);
+      ex.location=s.location;
+      ex.spots=ex.spots.filter(spot=>{if(seen.has(spot.index))return false;seen.add(spot.index);return true;});
+      if(!ex.spots.length)ex.remaining=0;
+    }
   }
   return s;
 }
