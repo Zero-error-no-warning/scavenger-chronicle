@@ -1,13 +1,13 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.4';
-import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.4';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.4';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.4';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.4';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, ROAD_OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.6';
+import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.6';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.6';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.6';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.6';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.4';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.6';
 
 export function newGame(seed=Date.now()) {
-  const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
+  const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],roadObstacles:[],
     vitals:Object.fromEntries(['headHP','bodyHP','headST','bodyST'].map(key=>[key,BALANCE.player[key]])),pack:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:3,water:3,fuel:1,med:1,bandage:2},
     baseResources:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:6,water:6,scrap:4,cloth:2,fuel:3,med:2,bandage:4,ration:2,tea:2,dressing:1,firstaid:1},inventory:[],stash:[],equipment:{},modules:[],hunger:0,thirst:0,exploration:null,combat:null,log:[],visits:0,kills:0,lootCount:0};
   const weapon=makeItem(s,'broom','sharp'),coat=makeItem(s,'workcoat',null),cap=makeItem(s,'cap',null),knife=makeItem(s,'knife','long');
@@ -21,7 +21,7 @@ export function newGame(seed=Date.now()) {
 export function createWorld(s) {
   s.world=Array.from({length:15},(_,i)=>({id:i,locId:pick(s,LOCATIONS).id,seen:false,visits:0,used:[],discovered:[]}));
   s.world[7].locId='road'; s.world[2].locId='clinic';s.world[6].locId='mart';s.world[8].locId='factory';s.world[12].locId='forest';
-  s.location=s.baseLocation=7; reveal(s);
+  s.location=s.baseLocation=7;createRoadObstacles(s);reveal(s);
 }
 export function log(s,message) {s.log.unshift({day:s.day,hour:s.hour,text:message});s.log=s.log.slice(0,80);}
 export const atBase=s=>s.location===s.baseLocation;
@@ -36,6 +36,41 @@ export const stats=s=>abilities(playerActor(s));
 export function neighbors(id) {
   const x=id%5,y=Math.floor(id/5);
   return [x>0?id-1:null,x<4?id+1:null,y>0?id-5:null,y<2?id+5:null].filter(x=>x!==null);
+}
+const ROAD_EDGE_SETS=[
+  [[6,7,'wreck'],[7,8,'rubble'],[2,7,'tree'],[12,13,'wreck']],
+  [[1,2,'rubble'],[7,8,'tree'],[8,13,'wreck'],[10,11,'rubble']],
+  [[3,4,'wreck'],[6,11,'tree'],[7,12,'rubble'],[13,14,'tree']],
+];
+function createRoadObstacles(s){
+  const set=ROAD_EDGE_SETS[(Math.max(1,s.region)-1)%ROAD_EDGE_SETS.length];
+  s.roadObstacles=set.map(([a,b,kind])=>({a,b,kind,hp:ROAD_OBSTACLES[kind].maxHp,maxHp:ROAD_OBSTACLES[kind].maxHp}));
+}
+export function atMapEdge(s,id=s.location){
+  const x=id%5,y=Math.floor(id/5);return x===0||x===4||y===0||y===2;
+}
+export function roadObstacle(s,a,b){
+  const block=(s.roadObstacles||[]).find(o=>o.hp>0&&((o.a===a&&o.b===b)||(o.a===b&&o.b===a)));
+  return block?{...ROAD_OBSTACLES[block.kind],...block}:null;
+}
+export function roadObstaclesHere(s){
+  return neighbors(s.location).map(target=>({target,obstacle:roadObstacle(s,s.location,target)})).filter(x=>x.obstacle);
+}
+export function roadWorkPower(block,item){
+  const def=block&&ROAD_OBSTACLES[block.kind];return def?.tools?.[item?.baseId]||0;
+}
+export function clearRoadObstacle(s,target,itemId){
+  if(!free(s))return '今は道路の障害を除去できません。';
+  if(!neighbors(s.location).includes(target))return '隣接する道路の障害を選んでください。';
+  const stored=(s.roadObstacles||[]).find(o=>o.hp>0&&((o.a===s.location&&o.b===target)||(o.b===s.location&&o.a===target)));
+  if(!stored)return 'この道路はもう通れます。';
+  const item=s.inventory.find(i=>i.id===itemId),def=ROAD_OBSTACLES[stored.kind],power=def?.tools?.[item?.baseId]||0;
+  if(!power)return `${def.name}には適した道具が必要です（${def.hint}）。`;
+  if(s.vitals.bodyST<1)return '体STが足りません。';
+  releaseExploration(s);s.exploration=null;s.vitals.bodyST=Math.max(0,s.vitals.bodyST-1);advanceTime(s,1);
+  stored.hp=Math.max(0,stored.hp-power);
+  log(s,`${item.name}で${def.name}を除去した。道路障害HP ${stored.hp}/${stored.maxHp}。${stored.hp?'':' 道路が開通した。'}`);
+  return null;
 }
 export function reveal(s) {for(const id of [s.location,...neighbors(s.location)])s.world[id].seen=true;}
 export function advanceTime(s,hours) {
@@ -54,15 +89,17 @@ export function move(s,id,withBase=false) {
   if(!free(s))return '戦闘中は移動できません。';
   if(!neighbors(s.location).includes(id))return '隣接する場所を選んでください。';
   if(withBase) {
-    if(!atBase(s))return 'まず移動拠点に戻ってください。';
-    const fuel=s.modules.includes('engine')?1:2;
+    if(!atBase(s))return 'まずクルマに戻ってください。';
+    if(!s.modules.includes('engine'))return 'クルマは故障しています。まずエンジンを修理してください。';
+    const blocker=roadObstacle(s,s.location,id);if(blocker)return `${blocker.name}が道路を塞いでいます。徒歩で近づき、道具で除去してください。`;
+    const fuel=BALANCE.vehicle.fuelPerMove;
     if(available(s,'fuel')<fuel)return `燃料が${fuel}必要です。`;
     spend(s,'fuel',fuel);s.baseLocation=id;
   }
-  const beforeRisk=encounterRisk(s,'walk');releaseExploration(s);
-  s.location=id;s.exploration=null;s.world[id].visits++;reveal(s);advanceTime(s,1);
-  s.vitals.bodyST=Math.max(0,s.vitals.bodyST-1);
-  log(s,`${withBase?'拠点と一緒に':'歩いて'}${location(s).name}へ。`);
+  const beforeRisk=withBase?0:encounterRisk(s,'walk');releaseExploration(s);
+  s.location=id;s.exploration=null;s.world[id].visits++;reveal(s);advanceTime(s,withBase?BALANCE.vehicle.moveHours:1);
+  if(!withBase)s.vitals.bodyST=Math.max(0,s.vitals.bodyST-1);
+  log(s,`${withBase?'クルマで30分走り':'歩いて'}${location(s).name}へ。`);
   if(!withBase&&random(s)<Math.max(beforeRisk,encounterRisk(s,'walk')))encounter(s);
   return null;
 }
@@ -156,6 +193,11 @@ export function takeSupply(s,key) {
   if(carriedWeight(s)+resourceWeight(key)>BALANCE.packCapacity)return '携行重量がいっぱいです。';
   s.baseResources[key]--;s.pack[key]++;return null;
 }
+export function depositSupply(s,key) {
+  if(!atBase(s)||!free(s))return 'クルマに戻ってください。';
+  if(!Object.hasOwn(RESOURCES,key)||!s.pack[key])return '手持ちにありません。';
+  s.pack[key]--;s.baseResources[key]++;return null;
+}
 export function consume(s,key) {
   if(!free(s))return '戦闘中はアイテムを行動列に入れて使ってください。';
   if(!Object.hasOwn(CONSUMABLES,key))return '回復アイテムが見つかりません。';
@@ -227,8 +269,9 @@ export function finishCombat(s) {
   releaseBattle(s);s.combat=null;advanceTime(s,1);return null;
 }
 export function nextRegion(s) {
-  if(!free(s)||!atBase(s))return '拠点に戻ってください。';
+  if(!free(s)||!atBase(s))return 'クルマに戻ってください。';
+  if(!atMapEdge(s))return '次の街へ向かうには、クルマでマップの端まで移動してください。';
   if(!s.modules.includes('engine'))return 'まずエンジンを修理してください。';
-  if(available(s,'fuel')<3)return '次の街へ向かうには燃料が３必要です。';
-  spend(s,'fuel',3);releaseExploration(s);s.region++;s.exploration=null;createWorld(s);advanceTime(s,8);log(s,'見慣れた廃墟が、バックミラーの向こうへ消えた。');return null;
+  if(available(s,'fuel')<BALANCE.vehicle.nextRegionFuel)return `次の街へ向かうには燃料が${BALANCE.vehicle.nextRegionFuel}必要です。`;
+  spend(s,'fuel',BALANCE.vehicle.nextRegionFuel);releaseExploration(s);s.region++;s.exploration=null;createWorld(s);advanceTime(s,BALANCE.vehicle.nextRegionHours);log(s,'見慣れた廃墟が、バックミラーの向こうへ消えた。');return null;
 }
