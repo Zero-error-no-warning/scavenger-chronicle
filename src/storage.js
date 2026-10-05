@@ -1,6 +1,7 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS } from './data.js?v=0.2.1';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.1';
-import { abilities, playerActor } from './combat.js?v=0.2.1';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS } from './data.js?v=0.2.2';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.2';
+import { shuffled } from './random.js?v=0.2.2';
+import { abilities, playerActor } from './combat.js?v=0.2.2';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
@@ -33,6 +34,7 @@ export function validateSave(s) {
       if(!actor.armor||['head','body'].some(k=>!actor.armor[k]||!num(actor.armor[k].hardness,0,50)||!num(actor.armor[k].softness,1,50)))fail();
     }
     for(const key of ['hand','playerDeckSource','enemyDeckSource','playerDeck','enemyDeck','enemyPlan'])if(!arr(b[key],100)||b[key].some(k=>!CARD_TYPES[k]))fail();
+    if(b.revealedEnemyIndices!==undefined&&(!arr(b.revealedEnemyIndices,100)||new Set(b.revealedEnemyIndices).size!==b.revealedEnemyIndices.length||b.revealedEnemyIndices.some(i=>!Number.isInteger(i)||!num(i,0,b.enemyPlan.length-1))||b.revealedEnemyIndices.length!==Math.min(b.enemyPlan.length,b.limits?.perception??0)))fail();
     if(b.enemyLimits&&statKeys.some(k=>!num(b.enemyLimits[k],0,30)))fail();
     if(b.enemyResolution&&(!arr(b.enemyResolution,100)||b.enemyResolution.length!==b.enemyPlan.length||b.enemyResolution.some(value=>!isId(value,['pending','played','miss','failed','cancelled']))))fail();
     if(!arr(b.plan,30)||b.plan.some(x=>!Number.isInteger(x)||!num(x,0,b.hand.length-1))||new Set(b.plan).size!==b.plan.length||!num(b.distance,0,6)||!num(b.round,1,1e6)||!arr(b.history,60)||b.history.some(x=>!text(x))||!text(b.text)||!b.limits||statKeys.some(k=>!num(b.limits[k],0,30))||!isId(b.result,[null,'victory','defeat','mutual','escaped'])||typeof b.resolved!=='boolean')fail();
@@ -66,7 +68,9 @@ export function validateSave(s) {
     if(!refsValid(ex.hand)||!arr(ex.usedCards,18)||new Set(ex.usedCards).size!==ex.usedCards.length||ex.usedCards.some(i=>!Number.isInteger(i)||!num(i,0,ex.hand.length-1))||!ex.stats||statKeys.some(k=>!num(ex.stats[k],0,30))||ex.remaining>ex.stats.action||ex.remaining+ex.usedCards.length>ex.stats.action)fail();
     if(ex.spots.some(x=>!s.world[s.location].discovered.includes(x.index)))fail();
   }
-  if(s.combat){const b=s.combat;if(typeof b.sharedDeck!=='boolean'||typeof b.handDiscarded!=='boolean'||!refsValid(b.handRefs))fail();if(b.sharedDeck&&(b.handRefs.length!==b.hand.length||b.handRefs.some((r,i)=>r.key!==b.hand[i])))fail();b.playerTools=structuredClone(s.inventory);}
+  if(s.combat){const b=s.combat;if(typeof b.sharedDeck!=='boolean'||typeof b.handDiscarded!=='boolean'||!refsValid(b.handRefs))fail();if(b.sharedDeck&&(b.handRefs.length!==b.hand.length||b.handRefs.some((r,i)=>r.key!==b.hand[i])))fail();b.playerTools=structuredClone(s.inventory);
+    // A legacy round gets one deterministic reveal without changing gameplay RNG.
+    b.revealedEnemyIndices??=shuffled({rng:s.rng},b.enemyPlan.map((_,i)=>i)).slice(0,b.limits.perception).sort((a,c)=>a-c);}
   if(pileError(s))fail();
   if(s.lastCheck){const c=s.lastCheck;if(!text(c.name)||!text(c.card)||!arr(c.dice,30)||c.dice.some(x=>!Number.isInteger(x)||!num(x,1,6))||!num(c.bonus,-10,20)||!num(c.total,0,200)||!num(c.difficulty,1,30)||typeof c.success!=='boolean'||typeof c.recovery!=='boolean'||!num(c.day)||!num(c.hour,0,23))fail();}
   return s;

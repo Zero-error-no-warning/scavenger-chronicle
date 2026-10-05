@@ -1,5 +1,5 @@
-import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.1';
-import { shuffled } from './random.js?v=0.2.1';
+import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.2';
+import { shuffled } from './random.js?v=0.2.2';
 
 export const refId=ref=>`${ref.key}:${ref.source||''}`;
 export function cardPool(s) {
@@ -11,14 +11,13 @@ export function cardInfo(ref,inventory=[]) {
   if(item){c.sourceName=item.name;if(['pry','cut','dig'].includes(ref.key)||(item.type==='weapon'&&c.kind==='attack'&&c.range==='weapon')){c.ownWeapon={sharpness:item.sharpness,weight:item.weight};if(['tool','weapon'].includes(c.range))c.range=[item.minRange,item.maxRange];}}
   return c;
 }
-export const combatCard=(b,index)=>cardInfo(b.handRefs?.[index]?.key===b.hand[index]?b.handRefs[index]:{key:b.hand[index]},b.playerTools||[]);
+export const combatCard=(b,index)=>{const c=cardInfo(b.handRefs?.[index]?.key===b.hand[index]?b.handRefs[index]:{key:b.hand[index]},b.playerTools||[]);return {...c,name:c.combatName||c.name};};
 export const isCombat=c=>c.kind!=='search';
 export const isExploration=c=>!!c.search||c.kind==='recover';
 export function deckError(s,refs) {
   if(!Array.isArray(refs)||refs.length!==DECK_SIZE)return `デッキは${DECK_SIZE}枚にしてください。`;
   const pool=cardPool(s),counts=new Map();
   for(const ref of refs){if(!ref||!CARD_TYPES[ref.key]||!(ref.source===null||typeof ref.source==='string'))return 'カードの形式が違います。';const id=refId(ref),entry=pool.find(x=>refId(x)===id);if(!entry)return '持ち歩いていない道具のカードがあります。';counts.set(id,(counts.get(id)||0)+1);if(counts.get(id)>entry.limit)return '同じカードの枚数上限を超えています。';}
-  if(!refs.some(r=>CARD_TYPES[r.key].search))return '探索の判定に使うカードを1枚以上入れてください。';
   if(!refs.some(r=>isCombat(CARD_TYPES[r.key])&&CARD_TYPES[r.key].kind!=='recover'))return '戦闘カードを1枚以上入れてください。';
   return null;
 }
@@ -50,7 +49,6 @@ export function syncDeck(s) {
   releaseExploration(s);s.deck=s.deck.filter(r=>available.has(refId(r)));
   const pool=cardPool(s).filter(r=>!r.source);
   while(s.deck.length<DECK_SIZE){const entry=pool.find(r=>s.deck.filter(x=>refId(x)===refId(r)).length<r.limit);s.deck.push({key:entry.key,source:null});}
-  if(!s.deck.some(r=>CARD_TYPES[r.key].search))s.deck[s.deck.length-1]={key:'rummage',source:null};
   if(!s.deck.some(r=>isCombat(CARD_TYPES[r.key])&&CARD_TYPES[r.key].kind!=='recover'))s.deck[0]={key:'advance',source:null};
   resetPile(s);return true;
 }

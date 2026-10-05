@@ -1,8 +1,8 @@
-import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.1';
-import { equipped } from './items.js?v=0.2.1';
-import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.1';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.2';
+import { equipped } from './items.js?v=0.2.2';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.2';
 
-import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.1';
+import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.2';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
@@ -52,6 +52,9 @@ export function prepareRound(state,b) {
   if(b.result)throw new Error('終わった戦闘の次のラウンドは開始できません。');
   b.resolved=false;
   b.round++;
+  // Rebalance at the next round; an already-saved round retains its limits.
+  b.player.base=playerActor(state).base;
+  const def=ENEMIES.find(x=>x.id===b.enemyId);if(def)b.enemy.base=enemyActor(def).base;
   b.limits=abilities(b.player);
   b.limitActor=structuredClone(b.player);
   releaseBattle(state);b.handRefs=drawShared(state,b.limits.judgment);b.hand=b.handRefs.map(x=>x.key);b.handDiscarded=false;b.sharedDeck=true;b.playerTools=structuredClone(state.inventory);
@@ -82,6 +85,7 @@ export function prepareRound(state,b) {
   }
   b.plan=[];
   b.enemyResolution=b.enemyPlan.map(()=>'pending');
+  b.revealedEnemyIndices=shuffled(state,b.enemyPlan.map((_,i)=>i)).slice(0,b.limits.perception).sort((a,c)=>a-c);
 }
 export function inRange(card,actor,distance) {
   const [min,max]=['weapon','tool'].includes(card.range)?[actor.weapon.minRange,actor.weapon.maxRange]:(card.range||[0,0]);
@@ -177,8 +181,9 @@ export function resolveRound(state,b,{pass=false}={}) {
     if(b.player.headHP<=0)b.result=b.enemy.headHP<=0?'mutual':'defeat';
     else if(b.enemy.headHP<=0)b.result='victory';
     else if(commands.some(x=>x.side==='player'&&x.card.kind==='escape')) {
-      if(b.distance>=5) {b.result='escaped';messages.push('背を向け、走り抜けた。');}
-      else messages.push('離脱には距離５以上が必要。');
+      const threshold=Math.min(...commands.filter(x=>x.side==='player'&&x.card.kind==='escape').map(x=>x.card.escapeDistance??5));
+      if(b.distance>=threshold) {b.result='escaped';messages.push('背を向け、走り抜けた。');}
+      else messages.push(`離脱には距離${threshold}以上が必要。`);
     }
     b.enemyResolution ||= b.enemyPlan.map(()=>'pending');
     if(slot<b.enemyPlan.length)b.enemyResolution[slot]=status('enemy');

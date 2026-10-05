@@ -12,7 +12,7 @@ import { actionHelp } from '../src/action-help.js';
 const fresh=()=>newGame(218341);
 const dummy=()=>({headHP:10,bodyHP:30,headST:16,bodyST:24,armor:{head:{hardness:0,softness:2},body:{hardness:0,softness:2}}});
 function battle(cards,enemyCards=[],distance=1) {
-  const s=fresh(),b=beginCombat(s,'dog');releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=cards;b.plan=cards.map((_,i)=>i);b.enemyPlan=enemyCards;b.distance=distance;b.limits.action=Math.max(3,cards.length);
+  const s=fresh(),b=beginCombat(s,'dog');releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=cards;b.plan=cards.map((_,i)=>i);b.enemyPlan=enemyCards;b.enemyResolution=enemyCards.map(()=>'pending');b.revealedEnemyIndices=enemyCards.map((_,i)=>i).slice(0,b.limits.perception);b.distance=distance;b.limits.action=Math.max(3,cards.length);
   return {s,b};
 }
 test('出目３・６は体に３、頭に６の独立したダメージ',()=>{
@@ -40,7 +40,7 @@ test('負傷と疲労は別々の能力を低下させ、最低値を守る',()=
   const a=playerActor(fresh());a.headHP=0;a.bodyHP=0;a.headST=0;a.bodyST=0;
   assert.deepEqual(abilities(a),{perception:0,judgment:1,action:1,execution:1});
   a.headHP=5;a.bodyHP=15;a.headST=8;a.bodyST=12;
-  assert.deepEqual(abilities(a),{perception:1,judgment:3,action:2,execution:1});
+  assert.deepEqual(abilities(a),{perception:1,judgment:4,action:3,execution:1});
 });
 test('双方の同時移動を合算した距離を使う',()=>{
   const {s,b}=battle(['advance'],['retreat'],3);resolveRound(s,b);assert.equal(b.distance,3);
@@ -103,7 +103,7 @@ test('拠点移動は燃料を消費し、家と個人が同じ位置へ進む',
   const s=fresh(),fuel=s.pack.fuel+s.baseResources.fuel;assert.equal(move(s,6,true),null);assert.equal(s.location,s.baseLocation);assert.equal(s.pack.fuel+s.baseResources.fuel,fuel-2);
 });
 test('探索は知覚の数だけ箇所を発見し判断の数だけ手札を引く',()=>{
-    const s=newGame(1);assert.equal(survey(s),null);assert.equal(s.exploration.spots.length,2);assert.equal(s.exploration.hand.length,5);assert.equal(s.exploration.remaining,3);assert.equal(s.hour,9);validateSave(s);
+    const s=newGame(1);assert.equal(survey(s),null);assert.equal(s.exploration.spots.length,2);assert.equal(s.exploration.hand.length,8);assert.equal(s.exploration.remaining,5);assert.equal(s.hour,9);validateSave(s);
   });
 test('資源の預け入れは総量を保持する',()=>{
   const s=fresh(),before=s.pack.food+s.baseResources.food;deposit(s);assert.equal(s.pack.food,0);assert.equal(s.baseResources.food,before);
@@ -133,20 +133,20 @@ test('地図描画はゲーム乱数とセーブ状態を変更せず、再読�
 test('装備補正と傷の計算内訳は実際の能力値に一致する',()=>{
   const s=fresh();equip(s,s.inventory.find(i=>i.baseId==='knife').id);s.vitals.bodyHP=15;
   const actor=playerActor(s),detail=abilityBreakdown(actor).action;
-  assert.equal(detail.base,2);assert.equal(detail.ratio,.5);assert.equal(detail.value,1);
+  assert.equal(detail.base,4);assert.equal(detail.ratio,.5);assert.equal(detail.value,2);
   assert.match(abilityHelp(actor,'action'),/長すぎる/);assert.match(abilityHelp(actor,'action'),/15 \/ 30/);
   actor.base.action=-3;assert.equal(abilityBreakdown(actor).action.value,1);
 });
 test('ラウンド開始時の内訳は途中の疲労と区別され、セーブに残る',()=>{
   const s=fresh(),b=beginCombat(s,'dog'),before=structuredClone(b.limitActor);
-  b.player.headST=0;assert.equal(abilities(b.player).judgment,1);assert.equal(b.limits.judgment,5);
+  b.player.headST=0;assert.equal(abilities(b.player).judgment,1);assert.equal(b.limits.judgment,8);
   const copy=parseSave(JSON.stringify(s));assert.deepEqual(copy.combat.limitActor,before);
   prepareRound(s,b);assert.equal(b.limitActor.headST,0);assert.equal(b.limits.judgment,1);
   delete copy.combat.limitActor;assert.doesNotThrow(()=>validateSave(copy));
 });
 test('探索開始時の回数と内訳は回復カード使用による時間経過でも固定される',()=>{
     const s=newGame(1);survey(s);const basis=structuredClone(s.exploration.abilityActor),i=s.exploration.hand.findIndex(r=>r.key==='breathe');
-    s.rng=1000000;assert.equal(searchSpot(s,null,i),null);assert.deepEqual(s.exploration.abilityActor,basis);assert.equal(s.exploration.remaining,2);assert.deepEqual(parseSave(JSON.stringify(s)).exploration.abilityActor,basis);
+    s.rng=1000000;assert.equal(searchSpot(s,null,i),null);assert.deepEqual(s.exploration.abilityActor,basis);assert.equal(s.exploration.remaining,4);assert.deepEqual(parseSave(JSON.stringify(s)).exploration.abilityActor,basis);
   });
   test('操作の説明は乱数・物資・回数を変更せず実際のカード判定を説明する',()=>{
     const s=newGame(9);survey(s);s.vitals.bodyST=13;s.hunger=79;const before=JSON.stringify(s),spot=s.exploration.spots[0],i=s.exploration.hand.findIndex(r=>r.key==='sweep');

@@ -1,6 +1,6 @@
 // Balance knobs and content live here, independently from rules and rendering.
 export const BALANCE = {
-  player: { headHP: 10, bodyHP: 30, headST: 16, bodyST: 24, perception: 2, judgment: 5, action: 3, execution: 2 },
+  player: { headHP: 10, bodyHP: 30, headST: 16, bodyST: 24, perception: 2, judgment: 8, action: 5, execution: 2 },
   softnessFloor: 1, maxDistance: 6, startingDistance: 3,
   search: { goodBase: .38, goodPerception: .09, findBase: .40, findExecution: .12 },
   packCapacity: 12, maxModifiers: 3, saveVersion: 2,
@@ -17,10 +17,10 @@ export const CARD_TYPES = {
   escape: { name: '離脱する', kind: 'escape', icon: 'exit', bodyCost: 3, headCost: 1, desc: '距離５以上で戦闘から離脱。', color: 'gold' },
 };
 Object.assign(CARD_TYPES, {
-  rummage:{name:'周辺を探す',kind:'search',bodyCost:1,headCost:1,color:'gold',search:{open:1,salvage:0,overgrown:0,high:-2},desc:'開いた棚・残骸・草むらを探す。探索専用。'},
+  rummage:{name:'周辺を探す',combatName:'足場を探して後退',kind:'move',move:1,bodyCost:1,headCost:1,color:'gold',search:{open:1,salvage:0,overgrown:0,high:-2},desc:'開いた棚・残骸・草むらを探す。戦闘では距離を1広げる。'},
   force:{name:'力ずくで開く',kind:'attack',bodyCost:3,headCost:1,power:.6,range:[0,1],ownWeapon:{sharpness:0,weight:.6},color:'coral',search:{locked:0,blocked:1,open:0,salvage:0},noise:.15,desc:'鍵や障害物に挑む。戦闘では素手の打撃。探索時は遭遇率＋15ポイント。'},
   pry:{name:'バールでこじ開ける',kind:'attack',bodyCost:2,headCost:0,power:1,range:[0,1],color:'coral',search:{locked:3,blocked:3,salvage:2,open:1},desc:'鍵・障害物の探索判定＋3。戦闘でもバールで打撃。'},
-  unlock:{name:'鍵を開ける',kind:'search',bodyCost:0,headCost:2,color:'blue',search:{locked:4,open:1},desc:'鍵の探索判定＋4。探索専用。'},
+  unlock:{name:'鍵を開ける',combatName:'逃げ道を開く',kind:'escape',escapeDistance:6,bodyCost:0,headCost:2,color:'blue',search:{locked:4,open:1},desc:'鍵の探索判定＋4。戦闘では距離6で離脱。'},
   rope:{name:'ロープを使う',kind:'move',move:1,bodyCost:1,headCost:1,color:'teal',search:{high:4,blocked:1},desc:'高所の探索判定＋4。戦闘では距離を1広げる。'},
   cut:{name:'ナイフで切り開く',kind:'attack',bodyCost:2,headCost:0,power:1,range:'tool',color:'coral',search:{overgrown:3,open:1},desc:'草むらの探索判定＋3。戦闘ではこのナイフで攻撃。'},
   dig:{name:'スコップで掘る',kind:'attack',bodyCost:3,headCost:0,power:1,range:'tool',color:'coral',search:{blocked:3,salvage:3,overgrown:1},desc:'障害物・残骸の探索判定＋3。戦闘ではこのスコップで攻撃。'},
@@ -87,7 +87,7 @@ export const LOCATIONS = [
   {id:'tower',name:'途切れた電波塔',kind:'tower',danger:.38,loot:['scrap','med','fuel'],spots:['通信室','非常用物資庫','整備員ロッカー','配電盤','塔の足元','地下ケーブル室']},
 ];
 export const ENEMIES = [
-  {id:'dog',name:'腹ぺこの野犬',visual:'dog',hp:[7,18],st:[10,16],stats:[1,4,2,1],weapon:{sharpness:.7,weight:.5,minRange:0,maxRange:1},armor:{head:{hardness:0,softness:1.5},body:{hardness:.1,softness:2}},deck:['advance','advance','strike','strike','heavy','retreat','breathe'],text:'耳を伏せ、こちらの荷物を見ている。'},
-  {id:'scavenger',name:'道を塞ぐ拾荒者',visual:'raider',hp:[10,24],st:[14,20],stats:[2,5,3,1],weapon:{sharpness:.5,weight:.7,minRange:0,maxRange:1},armor:{head:{hardness:.3,softness:1.8},body:{hardness:.5,softness:2}},deck:['advance','strike','strike','throw','guard','retreat','breathe','focus'],text:'「その袋を置いていけ」――そう言って、笑った。'},
-  {id:'robot',name:'居残り警備ロボ',visual:'robot',hp:[12,32],st:[12,20],stats:[1,4,2,1],weapon:{sharpness:0,weight:1.1,minRange:0,maxRange:2},armor:{head:{hardness:1,softness:1.4},body:{hardness:1.1,softness:1.5}},deck:['advance','strike','heavy','guard','breathe','throw'],text:'錆びたランプが、赤く点滅を始める。'},
+  {id:'dog',name:'腹ぺこの野犬',visual:'dog',hp:[7,18],st:[10,16],stats:[1,6,3,1],weapon:{sharpness:.7,weight:.5,minRange:0,maxRange:1},armor:{head:{hardness:0,softness:1.5},body:{hardness:.1,softness:2}},deck:['advance','advance','strike','strike','heavy','retreat','breathe'],text:'耳を伏せ、こちらの荷物を見ている。'},
+  {id:'scavenger',name:'道を塞ぐ拾荒者',visual:'raider',hp:[10,24],st:[14,20],stats:[2,8,5,1],weapon:{sharpness:.5,weight:.7,minRange:0,maxRange:1},armor:{head:{hardness:.3,softness:1.8},body:{hardness:.5,softness:2}},deck:['advance','strike','strike','throw','guard','retreat','breathe','focus'],text:'「その袋を置いていけ」――そう言って、笑った。'},
+  {id:'robot',name:'居残り警備ロボ',visual:'robot',hp:[12,32],st:[12,20],stats:[1,6,3,1],weapon:{sharpness:0,weight:1.1,minRange:0,maxRange:2},armor:{head:{hardness:1,softness:1.4},body:{hardness:1.1,softness:1.5}},deck:['advance','strike','heavy','guard','breathe','throw'],text:'錆びたランプが、赤く点滅を始める。'},
 ];

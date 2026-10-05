@@ -1,5 +1,5 @@
-import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.1';
-import { pick, random, round, shuffled } from './random.js?v=0.2.1';
+import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.2';
+import { pick, random, round, shuffled } from './random.js?v=0.2.2';
 export function makeItem(state, baseId, modifierIds) {
   const base = [...WEAPONS, ...ARMOR, ...TOOLS].find(x => x.id === baseId);
   if (!base) throw new Error('Unknown item base');

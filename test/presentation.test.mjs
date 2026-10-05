@@ -5,11 +5,11 @@ import { newGame, survey, searchSpot, endSearch, move, explorationProgress } fro
 import { scenery } from '../src/art.js';
 import { beginCombat, resolveRound, prepareRound, abilities } from '../src/combat.js';
 import { parseSave } from '../src/storage.js';
-import { replayPhases, replayView, cardRoute, renderResolution, diceArt, enemyActionSummary, enemyAbilityInfo } from '../src/battle-presentation.js';
+import { replayPhases, replayView, visibleEnemyIndices, cardRoute, renderResolution, diceArt, enemyActionSummary, enemyAbilityInfo } from '../src/battle-presentation.js';
 
 function battle(playerCards,enemyCards,distance=1) {
   const s=newGame(9128),b=beginCombat(s,'dog');
-  releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=playerCards;b.plan=playerCards.map((_,i)=>i);b.limits.action=Math.max(3,playerCards.length);b.enemyPlan=enemyCards;b.enemyResolution=enemyCards.map(()=>'pending');b.distance=distance;
+  releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=playerCards;b.plan=playerCards.map((_,i)=>i);b.limits.action=Math.max(5,playerCards.length);b.enemyPlan=enemyCards;b.revealedEnemyIndices=enemyCards.map((_,i)=>i).slice(0,b.limits.perception);b.enemyResolution=enemyCards.map(()=>'pending');b.distance=distance;
   return {s,b};
 }
 test('車は現在地に駐車中のときだけ探索・拠点画面に現れる',()=>{
@@ -74,13 +74,32 @@ test('敵の上限とツールチップは敵自身の開始値を使い、途�
   prepareRound(s,b);assert.equal(enemyAbilityInfo(b,'action').value,1);assert.deepEqual(b.enemyResolution,b.enemyPlan.map(()=>'pending'));
 });
 
-test('行動開始時２回の敵は負傷して現在値１でも表示と実行が２回で一致する',()=>{
-  const s=newGame(192),b=beginCombat(s,'dog');assert.equal(b.enemyPlan.length,2);
+test('行動開始時３回の敵は負傷して現在値１でも表示と実行が３回で一致する',()=>{
+  const s=newGame(192),b=beginCombat(s,'dog');assert.equal(b.enemyPlan.length,3);
   b.enemy.bodyHP=1;assert.equal(abilities(b.enemy).action,1);
-  assert.equal(enemyAbilityInfo(b,'action').value,2);
-  const frames=resolveRound(s,b,{pass:true});assert.equal(frames.filter(f=>f.enemyCard).length,2);
-  assert.equal(enemyActionSummary(b).executed,2);
+  assert.equal(enemyAbilityInfo(b,'action').value,3);
+  const frames=resolveRound(s,b,{pass:true});assert.equal(frames.filter(f=>f.enemyCard).length,3);
+  assert.equal(enemyActionSummary(b).executed,3);
   const old=structuredClone(b);delete old.enemyLimits;delete old.enemyLimitActor;
-  assert.equal(enemyAbilityInfo(old,'action').value,2);
+  assert.equal(enemyAbilityInfo(old,'action').value,3);
   prepareRound(s,b);assert.equal(b.enemyLimits.action,1);assert.ok(b.enemyPlan.length<=1);
+});
+
+test('敵カードの公開位置は先頭に偏らず、ラウンド中・セーブ後も固定する',()=>{
+  const patterns=new Set();let outsidePrefix=0;
+  for(let seed=1;seed<=50;seed++){
+    const s=newGame(seed),b=beginCombat(s,'dog'),indices=[...b.revealedEnemyIndices];
+    assert.equal(indices.length,Math.min(b.limits.perception,b.enemyPlan.length));assert.equal(new Set(indices).size,indices.length);assert.ok(indices.every(i=>i>=0&&i<b.enemyPlan.length));
+    if(indices.some(i=>i>=indices.length))outsidePrefix++;patterns.add(indices.join(','));
+    const before=JSON.stringify(s);assert.deepEqual([...visibleEnemyIndices(b)],indices);assert.deepEqual([...visibleEnemyIndices(b)],indices);assert.equal(JSON.stringify(s),before);
+    const copy=parseSave(before);assert.deepEqual(copy.combat.revealedEnemyIndices,indices);assert.equal(copy.rng,s.rng);
+    assert.ok(visibleEnemyIndices(b,{played:1}).has(0));assert.equal(visibleEnemyIndices(b,{resolved:true}).size,b.enemyPlan.length);
+  }
+  assert.ok(outsidePrefix>0);assert.ok(patterns.size>=3);
+});
+test('公開位置のない旧セーブは乱数と予定を保持して一度だけ公開位置を補う',()=>{
+  const s=newGame(12),b=beginCombat(s,'dog');delete b.revealedEnemyIndices;const before=JSON.stringify(s),a=parseSave(before),c=parseSave(before);
+  assert.equal(a.rng,s.rng);assert.deepEqual(a.combat.enemyPlan,b.enemyPlan);assert.deepEqual(a.combat.hand,b.hand);assert.deepEqual(a.combat.revealedEnemyIndices,c.combat.revealedEnemyIndices);
+  assert.deepEqual(parseSave(JSON.stringify(a)).combat.revealedEnemyIndices,a.combat.revealedEnemyIndices);
+  const bad=structuredClone(a);bad.combat.revealedEnemyIndices=[0,0];assert.throws(()=>parseSave(JSON.stringify(bad)));
 });

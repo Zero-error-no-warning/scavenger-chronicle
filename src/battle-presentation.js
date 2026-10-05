@@ -1,6 +1,6 @@
-import { CARD_TYPES } from './data.js?v=0.2.1';
-import { abilities } from './combat.js?v=0.2.1';
-import { cardArt, escapeHTML as e } from './art.js?v=0.2.1';
+import { CARD_TYPES } from './data.js?v=0.2.2';
+import { abilities } from './combat.js?v=0.2.2';
+import { cardArt, escapeHTML as e } from './art.js?v=0.2.2';
 
 export function replayPhases(frame,{reduced=false}={}) {
   if(reduced)return [{name:'impact',duration:240}];
@@ -9,6 +9,10 @@ export function replayPhases(frame,{reduced=false}={}) {
 export function replayView(frame,phase) {
   const snapshot=phase==='cards'?frame.before:['dice','result'].includes(phase)?frame.ready:frame;
   return {...frame,...snapshot,enemyResolution:phase==='impact'?frame.enemyResolution:frame.before.enemyResolution,phase};
+}
+export function visibleEnemyIndices(battle,{resolved=battle.resolved,played=0}={}) {
+  const initial=battle.revealedEnemyIndices||[];
+  return new Set(resolved?battle.enemyPlan.map((_,i)=>i):[...initial,...battle.enemyPlan.map((_,i)=>i).filter(i=>i<played)]);
 }
 export function enemyActionSummary(battle) {
   const planned=battle.enemyPlan.length,statuses=battle.enemyResolution;
@@ -41,7 +45,7 @@ export function renderResolution(frame,phase=frame.phase) {
   if(!frame)return '';
   const cards=['player','enemy'].map(side=>{
     const key=frame[`${side}Card`],card=CARD_TYPES[key];if(!card)return '';
-    const route=cardRoute(frame,side),label=route==='failed'?'ST不足で不発':route==='miss'?'射程外':card.name;
+    const route=cardRoute(frame,side),label=route==='failed'?'ST不足で不発':route==='miss'?'射程外':card.combatName||card.name;
     return `<div class="duel-card ${side} ${card.color}" data-route="${route}"><small>${side==='player'?'あなた':'相手'}</small>${cardArt(key)}<b>${e(label)}</b></div>`;
   }).join('');
   const hits=phase==='impact'?frame.effects.map(effect=>`<div class="hit-burst ${effect.targetSide}" data-target="${effect.targetSide}"><span class="impact-star" aria-hidden="true"></span><b>${effect.damage.headHP?`頭HP −${effect.damage.headHP}`:''}${effect.damage.headHP&&effect.damage.bodyHP?'<br>':''}${effect.damage.bodyHP?`体HP −${effect.damage.bodyHP}`:''}${!effect.damage.headHP&&!effect.damage.bodyHP?'防いだ':''}</b></div>`).join(''):'';

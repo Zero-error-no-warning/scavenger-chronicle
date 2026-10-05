@@ -1,9 +1,9 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.1';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.1';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.1';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.1';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.2';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.2';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.2';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.2';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.1';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.2';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
@@ -83,8 +83,8 @@ export function successChance(count,bonus,difficulty){
   return Math.round(dist.reduce((sum,p,i)=>sum+(i+bonus>=difficulty?p:0),0)*100);
 }
 export function searchOption(s,index,handIndex){
-  const ex=s.exploration,ref=ex?.hand?.[handIndex],c=ref&&cardInfo(ref,s.inventory),o=obstacle(s,index),execution=stats(s).execution;
-  const error=!ex||ex.location!==s.location?'周辺を見渡してください。':ex.remaining<=0?'行動回数を使い切りました。カードを引き直してください。':!c||ex.usedCards.includes(handIndex)?'使用できる手札を選んでください。':s.vitals.bodyST<c.bodyCost||s.vitals.headST<c.headCost?'STが足りません。回復カードや物資を使ってください。':c.kind==='recover'?null:!ex.spots.some(x=>x.index===index)||s.world[s.location].used.includes(index)?'この箇所は探索できません。':c.search?.[o.kind]===undefined?'このカードではこの箇所を調べられません。':null;
+  const ex=s.exploration,ref=ex?.hand?.[handIndex],basic=handIndex===null,c=basic?{name:'基本探索',kind:'search',basic:true,bodyCost:1,headCost:1,search:{open:0}}:ref&&cardInfo(ref,s.inventory),o=obstacle(s,index),execution=basic?1:stats(s).execution;
+  const error=!ex||ex.location!==s.location?'周辺を見渡してください。':ex.remaining<=0?'行動回数を使い切りました。カードを引き直してください。':!c||(!basic&&ex.usedCards.includes(handIndex))?'使用できる手札を選んでください。':s.vitals.bodyST<c.bodyCost||s.vitals.headST<c.headCost?'STが足りません。回復カードや物資を使ってください。':c.kind==='recover'?null:!ex.spots.some(x=>x.index===index)||s.world[s.location].used.includes(index)?'この箇所は探索できません。':c.search?.[o.kind]===undefined?basic?'この箇所には対応した探索カードが必要です。':'このカードではこの箇所を調べられません。':null;
   const bonus=c?.search?.[o.kind]??0;
   return {card:c,obstacle:o,execution,bonus,chance:c?.search?.[o.kind]!==undefined?successChance(execution,bonus,o.difficulty):0,risk:Math.max(encounterRisk(s,'search',s.hour,c?.noise||0),encounterRisk(s,'search',(s.hour+1)%24,c?.noise||0)),error};
 }
@@ -121,7 +121,7 @@ export function searchSpot(s,index,handIndex){
   if(s.world[s.location].used.includes(index))return 'この箇所は調査済みです。';
   const option=searchOption(s,index,handIndex);if(option.error)return option.error;
   const {card:c,obstacle:o,execution,bonus,risk}=option,ex=s.exploration;
-  ex.usedCards.push(handIndex);discardRefs(s,[ex.hand[handIndex]]);ex.remaining--;
+  if(!c.basic){ex.usedCards.push(handIndex);discardRefs(s,[ex.hand[handIndex]]);}ex.remaining--;
   const dice=c.kind==='recover'?[]:Array.from({length:execution},()=>1+Math.floor(random(s)*6)),total=dice.reduce((a,b)=>a+b,0)+bonus,success=c.kind==='recover'||total>=o.difficulty;
   s.vitals.bodyST=clamp(s.vitals.bodyST-c.bodyCost+(c.bodyRecovery||0),0,BALANCE.player.bodyST);s.vitals.headST=clamp(s.vitals.headST-c.headCost+(c.headRecovery||0),0,BALANCE.player.headST);advanceTime(s,1);
   s.lastCheck={name:c.kind==='recover'?c.name:o.spotName,card:c.name,dice,bonus,total,difficulty:o.difficulty,success,recovery:c.kind==='recover',day:s.day,hour:s.hour};

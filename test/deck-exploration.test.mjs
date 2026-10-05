@@ -25,7 +25,7 @@ test('手札を予約したまま同じ物理カードを重複して引かず�
 });
 test('探索の引き直しは独立して1時間・STを使い箇所を保持する',()=>{
   const s=prepared(),spots=structuredClone(s.exploration.spots),hour=s.hour,st=s.vitals.headST,hand=JSON.stringify(s.exploration.hand);s.rng=1000000;
-  assert.equal(redraw(s),null);assert.equal(s.combat,null);assert.equal(s.hour,hour+1);assert.equal(s.vitals.headST,st-1);assert.deepEqual(s.exploration.spots,spots);assert.notEqual(JSON.stringify(s.exploration.hand),hand);assert.equal(s.exploration.remaining,3);assert.equal(pileError(s),null);saved(s);
+  assert.equal(redraw(s),null);assert.equal(s.combat,null);assert.equal(s.hour,hour+1);assert.equal(s.vitals.headST,st-1);assert.deepEqual(s.exploration.spots,spots);assert.notEqual(JSON.stringify(s.exploration.hand),hand);assert.equal(s.exploration.remaining,5);assert.equal(pileError(s),null);saved(s);
 });
 test('カード判定は実効個のD6合計＋道具補正、失敗箇所は残る',()=>{
   let failures=0,successes=0;
@@ -44,15 +44,16 @@ test('不適合・使用済みカード・ST不足は時間と乱数を消費し
   const [index,j]=candidate(s);s.vitals.headST=s.vitals.bodyST=0;before=JSON.stringify(s);assert.ok(searchSpot(s,index,j));assert.equal(JSON.stringify(s),before);
 });
 test('探索の回復カードも行動1回・1時間を使い使用済みを捨て札に戻す',()=>{
-  const s=newGame(1);survey(s);const i=s.exploration.hand.findIndex(r=>r.key==='breathe');s.vitals.bodyST=1;s.rng=1000000;assert.equal(searchSpot(s,null,i),null);assert.equal(s.vitals.bodyST,10);assert.equal(s.exploration.remaining,2);assert.equal(s.lastCheck.recovery,true);assert.equal(pileError(s),null);const before=JSON.stringify(s);assert.ok(searchSpot(s,null,i));assert.equal(JSON.stringify(s),before);saved(s);
+  const s=newGame(1);survey(s);const i=s.exploration.hand.findIndex(r=>r.key==='breathe');s.vitals.bodyST=1;s.rng=1000000;assert.equal(searchSpot(s,null,i),null);assert.equal(s.vitals.bodyST,10);assert.equal(s.exploration.remaining,4);assert.equal(s.lastCheck.recovery,true);assert.equal(pileError(s),null);const before=JSON.stringify(s);assert.ok(searchSpot(s,null,i));assert.equal(JSON.stringify(s),before);saved(s);
 });
 test('成功率の表示はD6分布と一致し障害物の難易度は再読み込みで変わらない',()=>{
   assert.equal(successChance(1,0,4),50);assert.equal(successChance(2,0,7),58);assert.equal(successChance(1,4,5),100);assert.equal(successChance(1,-2,9),0);
   const s=fresh();assert.equal(obstacle(s,0).kind,'locked');assert.deepEqual(obstacle(saved(s),0),obstacle(s,0));
 });
-test('探索から戦闘へ共通手札を戻し、探索専用カードの戦闘使用を拒否する',()=>{
+test('探索から戦闘へ共通手札を戻し、探索カードも戦闘で使える',()=>{
   const s=prepared(),discovered=structuredClone(s.world[7].discovered),b=beginCombat(s,'dog');assert.equal(s.exploration.hand.length,0);assert.deepEqual(s.world[7].discovered,discovered);assert.equal(pileError(s),null);saved(s);
-  releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=['rummage'];b.plan=[0];const before=JSON.stringify(s);assert.match(validatePlan(b),/探索専用/);assert.throws(()=>resolveRound(s,b));assert.equal(JSON.stringify(s),before);
+  releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=['rummage'];b.plan=[0];b.enemyPlan=[];b.revealedEnemyIndices=[];
+  const distance=b.distance;assert.equal(validatePlan(b),null);resolveRound(s,b);assert.equal(b.distance,Math.min(6,distance+1));assert.equal(pileError(s),null);
 });
 test('道具カードは採用元の武器を使い、装備武器の射程や威力と混同しない',()=>{
   const s=fresh(),knife=s.inventory.find(x=>x.baseId==='knife'),c=cardInfo({key:'cut',source:knife.id},s.inventory);assert.deepEqual(c.range,[knife.minRange,knife.maxRange]);assert.equal(c.ownWeapon.sharpness,knife.sharpness);assert.equal(c.ownWeapon.weight,knife.weight);
@@ -95,4 +96,46 @@ test('到着では手札を引かず、再訪した発見済み区画も見渡�
   s.rng=1000000;const hour=s.hour;assert.equal(survey(s),null);assert.equal(s.combat,null);
   assert.equal(s.hour,hour+1);assert.equal(s.exploration.hand.length,s.exploration.stats.judgment);
   assert.deepEqual(s.exploration.spots.map(x=>x.index),[0,2,3,4,5]);assert.equal(pileError(s),null);saved(s);
+});
+
+test('基本探索はカードなしで1D6、難易度5で成功率33%、行動・時間・STを消費する',()=>{
+  let successes=0,failures=0;
+  for(let seed=1;seed<=40;seed++){
+    const s=fresh();s.world[7].discovered=[2];s.rng=1000000;redraw(s);assert.equal(s.combat,null);
+    const before={pile:structuredClone(s.deckState),hand:structuredClone(s.exploration.hand),remaining:s.exploration.remaining,st:s.vitals.headST,hour:s.hour};
+    const option=searchOption(s,2,null);assert.equal(option.error,null);assert.equal(option.execution,1);assert.equal(option.chance,33);
+    s.rng=seed*71234567>>>0;assert.equal(searchSpot(s,2,null),null);
+    const result=s.lastCheck;assert.equal(result.card,'基本探索');assert.equal(result.dice.length,1);assert.equal(result.bonus,0);assert.equal(result.success,result.dice[0]>=5);
+    result.success?successes++:failures++;assert.equal(s.hour,before.hour+1);
+    if(!s.combat){assert.deepEqual(s.deckState,before.pile);assert.deepEqual(s.exploration.hand,before.hand);assert.deepEqual(s.exploration.usedCards,[]);assert.equal(s.exploration.remaining,before.remaining-1);assert.equal(s.vitals.headST,before.st-1);}
+    assert.equal(s.world[7].used.includes(2),result.success);assert.equal(pileError(s),null);saved(s);
+  }
+  assert.ok(successes>0&&failures>0);
+});
+test('基本探索では鍵・高所を拒否し、探索開始前・行動切れ・ST不足も時間や乱数を進めない',()=>{
+  const s=fresh();let before=JSON.stringify(s);assert.ok(searchSpot(s,2,null));assert.equal(JSON.stringify(s),before);
+  s.world[7].discovered=[0,2,4];s.rng=1000000;redraw(s);
+  for(const index of [0,4]){before=JSON.stringify(s);assert.match(searchSpot(s,index,null),/探索カード/);assert.equal(JSON.stringify(s),before);}
+  s.exploration.remaining=0;before=JSON.stringify(s);assert.ok(searchSpot(s,2,null));assert.equal(JSON.stringify(s),before);
+  s.exploration.remaining=1;s.vitals.headST=0;before=JSON.stringify(s);assert.ok(searchSpot(s,2,null));assert.equal(JSON.stringify(s),before);
+});
+test('探索カードなしの18枚も組めて、基本探索で開いた物資を探せる',()=>{
+  const s=fresh(),refs=['advance','advance','advance','retreat','retreat','retreat','strike','strike','strike','strike','guard','guard','guard','breathe','breathe','focus','focus','escape'].map(key=>({key,source:null}));
+  assert.equal(deckError(s,refs),null);assert.equal(commitDeck(s,refs),null);
+  s.world[7].discovered=[2];s.rng=1000000;redraw(s);assert.ok(s.exploration.hand.every(r=>!cardInfo(r,s.inventory).search));assert.equal(searchOption(s,2,null).error,null);assert.equal(pileError(s),null);
+});
+test('鍵開けカードは戦闘で距離6の離脱に使え、通常の離脱は距離5で使える',()=>{
+  for(const [key,distance,escaped] of [['unlock',5,false],['unlock',6,true],['escape',5,true]]){
+    const s=fresh(),b=beginCombat(s,'dog');releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=[key];b.plan=[0];b.enemyPlan=[];b.enemyResolution=[];b.revealedEnemyIndices=[];b.distance=distance;
+    assert.equal(validatePlan(b),null);resolveRound(s,b);assert.equal(b.result==='escaped',escaped);
+  }
+});
+
+test('旧ラウンドの手札5枚・行動3回を保持し、次ラウンドでは新しい8枚・5回へ更新する',()=>{
+  const s=fresh(),b=beginCombat(s,'dog');
+  discardRefs(s,b.handRefs.slice(5));b.handRefs=b.handRefs.slice(0,5);b.hand=b.hand.slice(0,5);
+  b.player.base.judgment=b.limitActor.base.judgment=5;b.player.base.action=b.limitActor.base.action=3;b.limits.judgment=5;b.limits.action=3;
+  delete b.revealedEnemyIndices;const rng=s.rng,copy=saved(s);
+  assert.equal(copy.rng,rng);assert.equal(copy.combat.hand.length,5);assert.equal(copy.combat.limits.action,3);
+  prepareRound(copy,copy.combat);assert.equal(copy.combat.hand.length,8);assert.equal(copy.combat.limits.action,5);assert.equal(pileError(copy),null);saved(copy);
 });

@@ -1,13 +1,13 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js?v=0.2.1';
-import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.1';
-import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.1';
-import { carriedWeight } from './items.js?v=0.2.1';
-import { abilityNames } from './ability-help.js?v=0.2.1';
-import { round } from './random.js?v=0.2.1';
-import { escapeHTML as e } from './art.js?v=0.2.1';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js?v=0.2.2';
+import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.2';
+import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.2';
+import { carriedWeight } from './items.js?v=0.2.2';
+import { abilityNames } from './ability-help.js?v=0.2.2';
+import { round } from './random.js?v=0.2.2';
+import { escapeHTML as e } from './art.js?v=0.2.2';
 
-import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.1';
-export const actionHelpActions=new Set(['redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
+import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.2';
+export const actionHelpActions=new Set(['basicSearch','redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
 const n=value=>Number(value.toFixed(2));
 const row=(label,value)=>`<li><span>${e(label)}</span><b>${e(String(value))}</b></li>`;
 const box=(title,body)=>`<div class="ability-help-title"><b>${e(title)}</b></div>${body}`;
@@ -32,19 +32,23 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
   const unavailable=state.combat?'戦闘中はこの操作を使えません。':state.vitals.headHP<=0?'旅が終わっています。':'';
   if(action==='survey'||action==='redraw'){
     const node=state.world[state.location],unknown=6-new Set([...(node.discovered||[]),...node.used]).size;
-    return box(action==='redraw'?'カードを引き直す':'周辺を見渡す',`${list([row('時間','1 時間'),row('ST消費','頭 1 / 体 1'),...(action==='survey'?[row('新しく発見する箇所',`${Math.min(a.perception,unknown)}（知覚 ${a.perception} / 未発見 ${unknown}）`)]:[]),row('引く手札',`${a.judgment} 枚`),row('使える枚数',`${a.action} 回に更新`),row('遭遇率',`${Math.round(Math.max(encounterRisk(state),encounterRisk(state,'search',(state.hour+1)%24))*100)}%`),...abilityRows(actor,action==='survey'?['perception','judgment','action']:['judgment','action'])])}${note('現在の手札を捨て、共通山札から引きます。未解決の探索箇所は残り、解決済みからは二度回収できません。18時〜6時は危険度が大幅に上がります。')}${blocked(unavailable)}`);
+    return box(action==='redraw'?'カードを引き直す':'周辺を見渡す',`${list([row('時間','1 時間'),row('ST消費','頭 1 / 体 1'),...(action==='survey'?[row('新しく発見する箇所',`${Math.min(a.perception,unknown)}（知覚 ${a.perception} / 未発見 ${unknown}）`)]:[]),row('引く手札',`${a.judgment} 枚`),row('使える回数',`${a.action} 回に更新`),row('遭遇率',`${Math.round(Math.max(encounterRisk(state),encounterRisk(state,'search',(state.hour+1)%24))*100)}%`),...abilityRows(actor,action==='survey'?['perception','judgment','action']:['judgment','action'])])}${note('現在の手札を捨て、共通山札から引きます。未解決の探索箇所は残り、解決済みからは二度回収できません。18時〜6時は危険度が大幅に上がります。')}${blocked(unavailable)}`);
   }
   if(action==='chooseSpot'){
     const o=obstacle(state,Number(value)),methods=cardPool(state).filter(r=>cardInfo(r,state.inventory).search?.[o.kind]!==undefined).map(r=>cardInfo(r,state.inventory).name);
-    return box(o.spotName,`${list([row('障害',o.name),row('難易度',o.difficulty),row('使えるカード',[...new Set(methods)].join(' / '))])}${note('実効個のD6の合計＋カードの道具補正が難易度以上で成功。失敗した箇所は再挑戦できます。選択だけでは時間は進みません。')}`);
+    return box(o.spotName,`${list([row('障害',o.name),row('難易度',o.difficulty),row('基本探索',o.kind==='open'?'カード不要・1D6':'対応した探索カードが必要'),row('使えるカード',[...new Set(methods)].join(' / '))])}${note('実効個のD6の合計＋カードの道具補正が難易度以上で成功。失敗した箇所は再挑戦できます。選択だけでは時間は進みません。')}`);
   }
   if(action==='chooseSearchCard'){
     const ref=ex?.hand?.[Number(value)],c=ref&&cardInfo(ref,state.inventory);if(!c)return '';
     return box(c.name,`<p>${e(c.desc)}</p>${list([row('道具',c.sourceName||'基本カード'),row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),row('使用時間','1 時間'),row('探索で使用',isExploration(c)?'可':'戦闘専用のため不可')])}${note('カード選択だけでは時間は進みません。戦闘専用カードは探索中には使えません。')}`);
   }
+  if(action==='basicSearch'){
+    const o=searchOption(state,Number(value),null);
+    return box('基本探索',`${list([row('判定',`1D6 ≥ ${o.obstacle.difficulty}`),row('成功率',`${o.chance}%`),row('時間','1時間'),row('行動','1回消費'),row('ST消費','頭1 / 体1'),row('遭遇率',`${Math.round(o.risk*100)}%`)])}${note('カードを消費せず開いた物資を探索します。対応カードを使うと実効に応じた追加ダイスと道具補正が付きます。失敗した箇所には再挑戦できます。')}${blocked(o.error||unavailable)}`);
+  }
   if(action==='useSearchCard'){
     const [spot,index]=String(value).split(':').map(Number),o=searchOption(state,spot,index),c=o.card;if(!c)return box('探索カードを使う','<p>手札と探索箇所を選んでください。</p>');
-    return box(c.name,`${list([row('時間','1 時間'),row('行動','1 回消費'),row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),...(c.kind==='recover'?[row('ST回復',`頭 +${c.headRecovery} / 体 +${c.bodyRecovery}`)]:[row('判定',`${o.execution}D6 ＋ ${o.bonus} ≥ ${o.obstacle.difficulty}`),row('成功率',`${o.chance}%`),...abilityRows(actor,['execution'])]),row('遭遇率',`${Math.round(o.risk*100)}%`)])}${note('実効はカードのST消費前に計算します。判定結果は先に自動保存され、演出中に再読み込みしても振り直しません。')}${blocked(o.error||unavailable)}`);
+    return box(c.name,`${list([row('時間','1 時間'),row('行動','1 回消費'),row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),...(c.kind==='recover'?[row('ST回復',`頭 +${c.headRecovery} / 体 +${c.bodyRecovery}`)]:[row('判定',`基本1D6 ＋ 追加${Math.max(0,o.execution-1)}D6 ＋ ${o.bonus} ≥ ${o.obstacle.difficulty}`),row('成功率',`${o.chance}%`),...abilityRows(actor,['execution'])]),row('遭遇率',`${Math.round(o.risk*100)}%`)])}${note('実効はカードのST消費前に計算します。判定結果は先に自動保存され、演出中に再読み込みしても振り直しません。')}${blocked(o.error||unavailable)}`);
   }
   if(action==='endSearch')return box('手札を片付ける',`${note('残っている手札を捨て札に戻します。発見した未解決の箇所は残り、引き直しで再開できます。時間・STは消費しません。')}`);
   if(action==='rest'){
@@ -81,7 +85,7 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
   if(action==='selectCard'){
     const index=Number(value),c=combatCard(b,index);if(!c)return '';
     const range=c.range==='weapon'?[actor.weapon.minRange,actor.weapon.maxRange]:c.range;
-    return box(c.name,`<p>${e(c.desc)}</p>${list([row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),...(range?[row('有効距離',`${range[0]}〜${range[1]} / 現在 ${b.distance}`)]:[]),...(c.kind==='attack'?[row('ダイス',`現在の実効 ${a.execution} 個`),...abilityRows(actor,['execution'])]:[])])}${note(!isCombat(c)?'探索専用カードなので、この戦闘では使えません。':c.kind==='attack'?'ダイス数は各行動のST消費前に決まります。先の行動で疲労すると減ります。射程外でもSTを消費します。':'同じ順番の敵カードと同時に解決します。')}${blocked(b.resolved?'このラウンドは解決済みです。':!b.plan.includes(index)&&b.plan.length>=b.limits.action?'行動上限です。選んだカードを外すと追加できます。':'')}`);
+    return box(c.name,`<p>${e(c.desc)}</p>${list([row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),...(range?[row('有効距離',`${range[0]}〜${range[1]} / 現在 ${b.distance}`)]:[]),...(c.kind==='escape'?[row('離脱距離',`${c.escapeDistance??5}以上`)]:[]),...(c.kind==='attack'?[row('ダイス',`現在の実効 ${a.execution} 個`),...abilityRows(actor,['execution'])]:[])])}${note(!isCombat(c)?'探索専用カードなので、この戦闘では使えません。':c.kind==='attack'?'ダイス数は各行動のST消費前に決まります。先の行動で疲労すると減ります。射程外でもSTを消費します。':'同じ順番の敵カードと同時に解決します。')}${blocked(b.resolved?'このラウンドは解決済みです。':!b.plan.includes(index)&&b.plan.length>=b.limits.action?'行動上限です。選んだカードを外すと追加できます。':'')}`);
   }
   if(action==='resolve')return box('この行動列で実行',`${list([row('選んだ行動',`${b.plan.length} / ${b.limits.action} 回`),row('敵の行動',`${b.enemyPlan.length} 回`),row('ST消費の合計',`頭 ${b.plan.reduce((sum,i)=>sum+combatCard(b,i).headCost,0)} / 体 ${b.plan.reduce((sum,i)=>sum+combatCard(b,i).bodyCost,0)}`)])}${note('双方の同じ順番を同時に解決。移動・回復・防御の後に攻撃します。敵の攻撃によるST減少で、後の行動が不発になることもあります。')}${blocked(b.resolved?'このラウンドは解決済みです。':validatePlan(b))}`);
   if(action==='passRound')return box('このラウンドは待機',`<p>あなたは行動せず、相手の ${b.enemyPlan.length} 回の予定だけを解決します。</p>${note('STは消費しませんが、敵からのダメージは受けます。待機だけではSTは回復しません。')}${blocked(b.plan.length?'選んだカードをすべて外すと待機できます。':'')}`);
