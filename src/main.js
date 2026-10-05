@@ -199,7 +199,7 @@ async function handleAction(event) {
   switch(action) {
     case 'tab':tab=value;if(value==='deck')deckDraft=structuredClone(state.deck);changed=false;break;
     case 'toggleMap':mapOpen=!mapOpen;changed=false;break;
-    case 'move':error=world.move(state,Number(value),driving);if(!error){selectedSpot=null;selectedSearchCard=null;}break;
+    case 'move':error=world.move(state,Number(value),driving);if(!error){selectedSpot=null;selectedSearchCard=null;mapOpen=false;}break;
     case 'survey':error=world.survey(state);selectedSearchCard=null;break;
     case 'redraw':error=world.redraw(state);selectedSearchCard=null;break;
     case 'chooseSpot':selectedSpot=Number(value);changed=false;break;
