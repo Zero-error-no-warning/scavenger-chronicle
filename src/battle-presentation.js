@@ -1,6 +1,6 @@
-import { CARD_TYPES } from './data.js?v=0.2.0';
-import { abilities } from './combat.js?v=0.2.0';
-import { cardArt, escapeHTML as e } from './art.js?v=0.2.0';
+import { CARD_TYPES } from './data.js?v=0.2.0-5';
+import { abilities } from './combat.js?v=0.2.0-5';
+import { cardArt, escapeHTML as e } from './art.js?v=0.2.0-5';
 
 export function replayPhases(frame,{reduced=false}={}) {
   if(reduced)return [{name:'impact',duration:240}];

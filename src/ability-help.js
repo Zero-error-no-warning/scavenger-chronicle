@@ -1,7 +1,7 @@
-import { BALANCE, WEAPONS, ARMOR } from './data.js?v=0.2.0';
-import { abilityBreakdown } from './combat.js?v=0.2.0';
-import { itemModifiers } from './items.js?v=0.2.0';
-import { escapeHTML as e } from './art.js?v=0.2.0';
+import { BALANCE, WEAPONS, ARMOR } from './data.js?v=0.2.0-5';
+import { abilityBreakdown } from './combat.js?v=0.2.0-5';
+import { itemModifiers } from './items.js?v=0.2.0-5';
+import { escapeHTML as e } from './art.js?v=0.2.0-5';
 
 export const abilityNames={perception:'知覚',judgment:'判断',action:'行動',execution:'実効'};
 const gaugeNames={headHP:'頭HP',headST:'頭ST',bodyHP:'体HP',bodyST:'体ST'};

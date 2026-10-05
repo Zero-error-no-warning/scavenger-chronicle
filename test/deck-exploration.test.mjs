@@ -56,6 +56,8 @@ test('探索から戦闘へ共通手札を戻し、探索専用カードの戦�
 });
 test('道具カードは採用元の武器を使い、装備武器の射程や威力と混同しない',()=>{
   const s=fresh(),knife=s.inventory.find(x=>x.baseId==='knife'),c=cardInfo({key:'cut',source:knife.id},s.inventory);assert.deepEqual(c.range,[knife.minRange,knife.maxRange]);assert.equal(c.ownWeapon.sharpness,knife.sharpness);assert.equal(c.ownWeapon.weight,knife.weight);
+  const strike=cardInfo({key:'strike',source:knife.id},s.inventory);assert.deepEqual(strike.range,[knife.minRange,knife.maxRange]);assert.equal(strike.ownWeapon.sharpness,knife.sharpness);
+  const basic=cardInfo({key:'strike',source:null},s.inventory);assert.equal(basic.range,'weapon');assert.equal(basic.ownWeapon,undefined);
 });
 test('道具を置くとそのカードを外し18枚を補い探索手札との総数も保つ',()=>{
   const s=prepared(),id=s.inventory.find(x=>x.baseId==='crowbar').id;assert.equal(stashItem(s,id),null);assert.ok(!s.deck.some(r=>r.source===id));assert.equal(s.deck.length,18);assert.equal(s.exploration.hand.length,0);assert.equal(deckError(s,s.deck),null);assert.equal(pileError(s),null);saved(s);

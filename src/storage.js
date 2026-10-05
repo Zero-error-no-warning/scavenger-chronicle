@@ -1,6 +1,6 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS } from './data.js?v=0.2.0';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.0';
-import { abilities, playerActor } from './combat.js?v=0.2.0';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS } from './data.js?v=0.2.0-5';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.0-5';
+import { abilities, playerActor } from './combat.js?v=0.2.0-5';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];

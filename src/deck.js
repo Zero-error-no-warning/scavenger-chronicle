@@ -1,5 +1,5 @@
-import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.0';
-import { shuffled } from './random.js?v=0.2.0';
+import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.0-5';
+import { shuffled } from './random.js?v=0.2.0-5';
 
 export const refId=ref=>`${ref.key}:${ref.source||''}`;
 export function cardPool(s) {
@@ -8,7 +8,7 @@ export function cardPool(s) {
 }
 export function cardInfo(ref,inventory=[]) {
   const c={...CARD_TYPES[ref.key]},item=inventory.find(x=>x.id===ref.source);
-  if(item){c.sourceName=item.name;if(['pry','cut','dig'].includes(ref.key)){c.ownWeapon={sharpness:item.sharpness,weight:item.weight};if(c.range==='tool')c.range=[item.minRange,item.maxRange];}}
+  if(item){c.sourceName=item.name;if(['pry','cut','dig'].includes(ref.key)||(item.type==='weapon'&&c.kind==='attack'&&c.range==='weapon')){c.ownWeapon={sharpness:item.sharpness,weight:item.weight};if(['tool','weapon'].includes(c.range))c.range=[item.minRange,item.maxRange];}}
   return c;
 }
 export const combatCard=(b,index)=>cardInfo(b.handRefs?.[index]?.key===b.hand[index]?b.handRefs[index]:{key:b.hand[index]},b.playerTools||[]);

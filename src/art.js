@@ -1,4 +1,4 @@
-import { equipped } from './items.js?v=0.2.0';
+import { equipped } from './items.js?v=0.2.0-5';
 export const escapeHTML = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const e=escapeHTML;
 // Interface symbols are typography; game illustration uses generated rasters.

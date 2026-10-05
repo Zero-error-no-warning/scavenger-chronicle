@@ -1,14 +1,14 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, DECK_SIZE, ITEM_CARDS } from './data.js?v=0.2.0';
-import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js?v=0.2.0';
-import * as world from './world.js?v=0.2.0';
-import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.0';
-import { icon, character, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.0';
-import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.0';
-import { renderMap, paintMap } from './map.js?v=0.2.0-3';
-import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.0';
-import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.0';
-import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.0';
-import { cardPool, cardInfo, combatCard, isCombat, isExploration, refId, deckError } from './deck.js?v=0.2.0';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, DECK_SIZE, ITEM_CARDS } from './data.js?v=0.2.0-5';
+import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js?v=0.2.0-5';
+import * as world from './world.js?v=0.2.0-5';
+import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.0-5';
+import { icon, character, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.0-5';
+import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.0-5';
+import { renderMap, paintMap } from './map.js?v=0.2.0-5';
+import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.0-5';
+import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.0-5';
+import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.0-5';
+import { cardPool, cardInfo, combatCard, isCombat, isExploration, refId, deckError } from './deck.js?v=0.2.0-5';
 const $=s=>document.querySelector(s);
 let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false,replaySkip=false,wakeReplay=null,exportSaveURL=null,selectedSpot=null,selectedSearchCard=null,deckDraft=null;
 try {state=loadGame()||world.newGame();}catch(err){state=world.newGame();saveError=err.message;}

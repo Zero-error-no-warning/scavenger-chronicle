@@ -1,9 +1,9 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.0';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.0';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.0';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.0';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.0-5';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.0-5';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.0-5';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.0-5';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.0';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.0-5';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
