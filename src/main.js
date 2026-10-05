@@ -211,7 +211,7 @@ async function handleAction(event) {
     case 'sound':sound=!sound;changed=false;break;
     case 'confirmNew':openDialog('新しい旅に出ますか？',`<p>現在の旅を上書きします。残したい場合は先にセーブを書き出してください。</p><div class="menu-actions">${button('exportSave','現在のセーブを書き出す',{cls:'full'})}${button('newGame','新しい旅を始める',{cls:'primary full'})}</div>`);return;
     case 'newGame':state=world.newGame();tab='explore';driving=false;dialog.close();break;
-    case 'exportSave':{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`scavenger-day-${state.day}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
+    case 'exportSave':{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`scavenger-day-${state.day}.json`;a.hidden=true;dialog.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
     default:return;
   }
   if(error){toast(error);changed=false;}
