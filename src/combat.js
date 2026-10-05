@@ -1,8 +1,8 @@
-import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.2';
-import { equipped } from './items.js?v=0.2.2';
-import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.2';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.3';
+import { equipped } from './items.js?v=0.2.3';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.3';
 
-import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.2';
+import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.3';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
@@ -13,8 +13,8 @@ export function abilityBreakdown(actor) {
 export function abilities(actor) {
   return Object.fromEntries(Object.entries(abilityBreakdown(actor)).map(([key,detail])=>[key,detail.value]));
 }
-export function playerActor(state) {
-  const base = { ...BALANCE.player };
+export function playerActor(state,{battle=false}={}) {
+  const base = { ...BALANCE.player, ...(battle?{execution:BALANCE.combatExecution.player}:{}) };
   for (const slot of ['head','body','weapon']) {
     for (const [key,delta] of Object.entries(equipped(state,slot)?.stats||{})) if (key in base) base[key] += delta;
   }
@@ -26,7 +26,7 @@ export function playerActor(state) {
 function enemyActor(def) {
   const [headHP,bodyHP]=def.hp, [headST,bodyST]=def.st;
   const [perception,judgment,action,execution]=def.stats;
-  return {name:def.name,visual:def.visual,headHP,bodyHP,headST,bodyST,max:{headHP,bodyHP,headST,bodyST},base:{perception,judgment,action,execution},weapon:structuredClone(def.weapon),armor:structuredClone(def.armor)};
+  return {name:def.name,visual:def.visual,headHP,bodyHP,headST,bodyST,max:{headHP,bodyHP,headST,bodyST},base:{perception,judgment,action,execution:execution*BALANCE.combatExecution.enemyMultiplier},weapon:structuredClone(def.weapon),armor:structuredClone(def.armor)};
 }
 function draw(state, battle, side, count) {
   const field = `${side}Deck`;
@@ -40,7 +40,7 @@ function draw(state, battle, side, count) {
 }
 export function beginCombat(state,enemyId) {
   const def=ENEMIES.find(x=>x.id===enemyId)||pick(state,ENEMIES);
-  const player=playerActor(state);
+  const player=playerActor(state,{battle:true});
   const b={round:0,distance:BALANCE.startingDistance,player,enemy:enemyActor(def),enemyId:def.id,text:def.text,
     playerDeckSource:state.deck.map(x=>x.key),enemyDeckSource:[...def.deck],playerDeck:[],enemyDeck:[],plan:[],history:[],result:null,resolved:false};
   releaseExploration(state);b.sharedDeck=true;b.handDiscarded=true;b.playerTools=structuredClone(state.inventory);
@@ -53,7 +53,7 @@ export function prepareRound(state,b) {
   b.resolved=false;
   b.round++;
   // Rebalance at the next round; an already-saved round retains its limits.
-  b.player.base=playerActor(state).base;
+  b.player.base=playerActor(state,{battle:true}).base;
   const def=ENEMIES.find(x=>x.id===b.enemyId);if(def)b.enemy.base=enemyActor(def).base;
   b.limits=abilities(b.player);
   b.limitActor=structuredClone(b.player);

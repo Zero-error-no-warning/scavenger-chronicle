@@ -1,7 +1,7 @@
-import { BALANCE, WEAPONS, ARMOR } from './data.js?v=0.2.2';
-import { abilityBreakdown } from './combat.js?v=0.2.2';
-import { itemModifiers } from './items.js?v=0.2.2';
-import { escapeHTML as e } from './art.js?v=0.2.2';
+import { BALANCE, WEAPONS, ARMOR } from './data.js?v=0.2.3';
+import { abilityBreakdown } from './combat.js?v=0.2.3';
+import { itemModifiers } from './items.js?v=0.2.3';
+import { escapeHTML as e } from './art.js?v=0.2.3';
 
 export const abilityNames={perception:'知覚',judgment:'判断',action:'行動',execution:'実効'};
 const gaugeNames={headHP:'頭HP',headST:'頭ST',bodyHP:'体HP',bodyST:'体ST'};
@@ -11,8 +11,9 @@ export function abilityHelp(actor,key,{battle=false,frozen=false,missingSnapshot
   const d=abilityBreakdown(actor)[key],player=actor.visual==='player';
   let sources='';
   if(player){
-    sources=`<li><span>基礎値</span><b>${BALANCE.player[key]}</b></li>`;
-    let accounted=BALANCE.player[key];
+    const baseValue=battle&&key==='execution'?BALANCE.combatExecution.player:BALANCE.player[key];
+    sources=`<li><span>${battle&&key==='execution'?'戦闘の基礎値':'基礎値'}</span><b>${baseValue}</b></li>`;
+    let accounted=baseValue;
     for(const item of [actor.armor.head,actor.armor.body,actor.weapon]){
       const delta=item.stats?.[key]||0;if(!delta)continue;accounted+=delta;
       const original=[...WEAPONS,...ARMOR].find(x=>x.id===item.baseId)?.stats?.[key]||0;

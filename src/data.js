@@ -1,6 +1,7 @@
 // Balance knobs and content live here, independently from rules and rendering.
 export const BALANCE = {
   player: { headHP: 10, bodyHP: 30, headST: 16, bodyST: 24, perception: 2, judgment: 8, action: 5, execution: 2 },
+  combatExecution: { player: 4, enemyMultiplier: 2 },
   softnessFloor: 1, maxDistance: 6, startingDistance: 3,
   search: { goodBase: .38, goodPerception: .09, findBase: .40, findExecution: .12 },
   packCapacity: 12, maxModifiers: 3, saveVersion: 2,
@@ -40,12 +41,12 @@ export const OBSTACLES={
 
 export const BASE_DECK = ['advance','advance','retreat','retreat','strike','strike','strike','guard','guard','breathe','breathe','focus','throw','escape'];
 export const WEAPONS = [
-  { id:'broom', name:'箒', sharpness:0, weight:.65, minRange:1, maxRange:2, carry:1, visual:'broom', color:'#d4aa67', cards:['retreat','guard'], text:'掃除が本業。長い柄は間合いを作る。' },
+  { id:'broom', name:'箒', sharpness:0, weight:.65, minRange:0, maxRange:1, carry:1, visual:'broom', color:'#d4aa67', cards:['retreat','guard'], text:'掃除が本業。手元の柄で身を守る。' },
   { id:'knife', name:'ナイフ', sharpness:1.2, weight:.3, minRange:0, maxRange:1, carry:.4, visual:'knife', color:'#adc4c4', cards:['strike','strike'], text:'軽く、鋭い。近づく必要がある。' },
   { id:'pipe', name:'鉄パイプ', sharpness:0, weight:1.6, minRange:0, maxRange:1, carry:2.1, visual:'pipe', color:'#8e9896', cards:['heavy','guard'], text:'刃はない。重さを相手に押しつける。' },
   { id:'axe', name:'手斧', sharpness:1.1, weight:1, minRange:0, maxRange:1, carry:1.5, visual:'axe', color:'#d77858', cards:['heavy','strike'], text:'薪にも、身を守るためにも。' },
-  { id:'umbrella', name:'傘', sharpness:.2, weight:.5, minRange:1, maxRange:2, carry:.8, visual:'umbrella', color:'#849cba', cards:['guard','retreat'], text:'雨よけが一番。ついでに牽制。' },
-  { id:'shovel', name:'スコップ', sharpness:.4, weight:1.2, minRange:1, maxRange:2, carry:1.8, visual:'shovel', color:'#8ca397', cards:['heavy','advance'], text:'掘る、こじ開ける、振り回す。' },
+  { id:'umbrella', name:'傘', sharpness:.2, weight:.5, minRange:0, maxRange:1, carry:.8, visual:'umbrella', color:'#849cba', cards:['guard','retreat'], text:'雨よけが一番。ついでに牽制。' },
+  { id:'shovel', name:'スコップ', sharpness:.4, weight:1.2, minRange:0, maxRange:1, carry:1.8, visual:'shovel', color:'#8ca397', cards:['heavy','advance'], text:'掘る、こじ開ける、振り回す。' },
 ];
 export const ARMOR = [
   { id:'workcoat', name:'作業ジャケット', slot:'body', hardness:.4, softness:2, carry:1.2, visual:'coat', color:'#6c9e91', text:'ほどよい厚み。まだ着られる。' },

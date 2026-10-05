@@ -1,9 +1,9 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.2';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.2';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.2';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.2';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.3';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.3';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.3';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.3';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.2';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.3';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
@@ -130,8 +130,10 @@ export function searchSpot(s,index,handIndex){
   else {
     s.world[s.location].used.push(index);ex.spots=ex.spots.filter(x=>x.index!==index);s.visits++;
     const good=total>=o.difficulty+3,loc=location(s);
-    if(random(s)<.45){const item=generateItem(s,good);if(carriedWeight(s)+item.carry<=BALANCE.packCapacity){s.inventory.push(item);s.lootCount++;log(s,`${o.spotName}から「${item.name}」を回収。拠点でカードを組み込める。`);}else log(s,`${item.name}を見つけたが、携行重量がいっぱい。`);}
-    else {const key=pick(s,loc.loot),space=Math.max(0,Math.floor((BALANCE.packCapacity-carriedWeight(s))/.15+1e-6)),n=Math.min(good?3:1,space);s.pack[key]+=n;s.lootCount+=n;log(s,`${o.spotName}を調査完了。${{food:'食料',water:'水',scrap:'スクラップ',cloth:'布',fuel:'燃料',med:'医療品'}[key]}を${n}つ回収。`);}
+    if(random(s)<.45){const item=generateItem(s,good),collected=carriedWeight(s)+item.carry<=BALANCE.packCapacity;
+      s.lastCheck.loot={kind:'item',item:structuredClone(item),quantity:collected?1:0,offered:1};
+      if(collected){s.inventory.push(item);s.lootCount++;log(s,`${o.spotName}から「${item.name}」を回収。拠点でカードを組み込める。`);}else log(s,`${item.name}を見つけたが、携行重量がいっぱい。`);}
+    else {const key=pick(s,loc.loot),space=Math.max(0,Math.floor((BALANCE.packCapacity-carriedWeight(s))/.15+1e-6)),n=Math.min(good?3:1,space);s.lastCheck.loot={kind:'resource',key,quantity:n,offered:good?3:1};s.pack[key]+=n;s.lootCount+=n;log(s,`${o.spotName}を調査完了。${{food:'食料',water:'水',scrap:'スクラップ',cloth:'布',fuel:'燃料',med:'医療品'}[key]}を${n}つ回収。`);}
   }
   if(random(s)<risk)encounter(s);return null;
 }

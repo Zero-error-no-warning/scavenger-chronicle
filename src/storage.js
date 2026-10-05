@@ -1,7 +1,8 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS } from './data.js?v=0.2.2';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.2';
-import { shuffled } from './random.js?v=0.2.2';
-import { abilities, playerActor } from './combat.js?v=0.2.2';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES } from './data.js?v=0.2.3';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.3';
+import { shuffled } from './random.js?v=0.2.3';
+import { abilities, playerActor } from './combat.js?v=0.2.3';
+import { migrateWeaponRange } from './items.js?v=0.2.3';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
@@ -73,6 +74,25 @@ export function validateSave(s) {
     b.revealedEnemyIndices??=shuffled({rng:s.rng},b.enemyPlan.map((_,i)=>i)).slice(0,b.limits.perception).sort((a,c)=>a-c);}
   if(pileError(s))fail();
   if(s.lastCheck){const c=s.lastCheck;if(!text(c.name)||!text(c.card)||!arr(c.dice,30)||c.dice.some(x=>!Number.isInteger(x)||!num(x,1,6))||!num(c.bonus,-10,20)||!num(c.total,0,200)||!num(c.difficulty,1,30)||typeof c.success!=='boolean'||typeof c.recovery!=='boolean'||!num(c.day)||!num(c.hour,0,23))fail();}
+  const loot=s.lastCheck?.loot;
+  if(loot!==undefined){
+    if(!s.lastCheck.success||s.lastCheck.recovery||!loot||!Number.isInteger(loot.quantity)||!Number.isInteger(loot.offered)||!num(loot.quantity,0,3)||!num(loot.offered,1,3)||loot.quantity>loot.offered)fail();
+    if(loot.kind==='item'){if(loot.offered!==1||!itemValid(loot.item))fail();}
+    else if(loot.kind==='resource'){if(!Object.hasOwn(RESOURCES,loot.key))fail();}
+    else fail();
+  }
+  // Apply balance changes without rerolling, recreating items or changing plans.
+  for(const item of [...s.inventory,...s.stash,...(loot?.kind==='item'?[loot.item]:[])])migrateWeaponRange(item);
+  if(ex)migrateWeaponRange(ex.abilityActor.weapon);
+  if(s.combat){
+    const b=s.combat;
+    for(const actor of [b.player,...(b.limitActor?[b.limitActor]:[])]){migrateWeaponRange(actor.weapon);actor.base.execution=playerActor(s,{battle:true}).base.execution;}
+    const def=ENEMIES.find(x=>x.id===b.enemyId);
+    if(def){for(const actor of [b.enemy,...(b.enemyLimitActor?[b.enemyLimitActor]:[])])actor.base.execution=def.stats[3]*BALANCE.combatExecution.enemyMultiplier;}
+    b.limits.execution=abilities(b.limitActor||b.player).execution;
+    if(b.enemyLimits)b.enemyLimits.execution=abilities(b.enemyLimitActor||b.enemy).execution;
+    b.playerTools=structuredClone(s.inventory);
+  }
   return s;
 }
 export function loadGame() {

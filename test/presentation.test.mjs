@@ -44,8 +44,8 @@ test('射程外・ST不足は本体への命中演出をしない',()=>{
   assert.deepEqual(enemyActionSummary(failed.b),{planned:1,known:true,executed:0,failed:1,cancelled:0,pending:0});
 });
 test('演出は移動・消費前→ダイス前→確定結果を表示し、乱数を振り直さない',()=>{
-  const {s,b}=battle(['advance','strike'],['guard','strike'],3),[first,attack]=resolveRound(s,b),saved=JSON.stringify(s);
-  assert.equal(first.before.distance,3);assert.equal(first.ready.distance,2);
+  const {s,b}=battle(['advance','strike'],['guard','strike'],2),[first,attack]=resolveRound(s,b),saved=JSON.stringify(s);
+  assert.equal(first.before.distance,2);assert.equal(first.ready.distance,1);
   assert.ok(attack.before.player.bodyST>attack.ready.player.bodyST);
   assert.deepEqual(replayPhases(attack).map(p=>p.name),['cards','dice','result','impact']);
   assert.deepEqual(replayPhases(attack,{reduced:true}).map(p=>p.name),['impact']);

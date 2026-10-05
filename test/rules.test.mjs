@@ -46,13 +46,13 @@ test('双方の同時移動を合算した距離を使う',()=>{
   const {s,b}=battle(['advance'],['retreat'],3);resolveRound(s,b);assert.equal(b.distance,3);
 });
 test('先に移動してから射程を判定する',()=>{
-  const {s,b}=battle(['advance','strike'],[],3);const frames=resolveRound(s,b);assert.equal(frames[1].effects.length,1);assert.equal(b.distance,2);
+  const {s,b}=battle(['advance','strike'],[],2);const frames=resolveRound(s,b);assert.equal(frames[1].effects.length,1);assert.equal(b.distance,1);
 });
 test('射程外でもコストを払い、ダメージを与えない',()=>{
   const {s,b}=battle(['strike'],[],6);const hp=b.enemy.bodyHP,st=b.player.bodyST;resolveRound(s,b);assert.equal(b.enemy.bodyHP,hp);assert.equal(b.player.bodyST,st-2);
 });
 test('途中のST消費により後続行動のダイス数が減る',()=>{
-  const {s,b}=battle(['strike','strike'],[],2);b.player.bodyST=13;b.enemy.headHP=b.enemy.max.headHP=100;b.enemy.bodyHP=b.enemy.max.bodyHP=100;
+  const {s,b}=battle(['strike','strike'],[],1);b.player.bodyST=7;b.enemy.headHP=b.enemy.max.headHP=100;b.enemy.bodyHP=b.enemy.max.bodyHP=100;
   const frames=resolveRound(s,b);assert.equal(frames[0].effects[0].dice.length,2);assert.equal(frames[1].effects[0].dice.length,1);
 });
 test('同じ行動枠の攻撃は相打ちを許す',()=>{

@@ -1,5 +1,5 @@
-import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.2';
-import { pick, random, round, shuffled } from './random.js?v=0.2.2';
+import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.3';
+import { pick, random, round, shuffled } from './random.js?v=0.2.3';
 export function makeItem(state, baseId, modifierIds) {
   const base = [...WEAPONS, ...ARMOR, ...TOOLS].find(x => x.id === baseId);
   if (!base) throw new Error('Unknown item base');
@@ -34,4 +34,14 @@ export function equipped(state, slot) { return state.inventory.find(x=>x.id===st
 export function itemModifiers(item) { return (item.modifiers||[]).map(id=>MODIFIERS.find(x=>x.id===id)).filter(Boolean); }
 export function carriedWeight(state) {
   return round(state.inventory.reduce((a,x)=>a+x.carry,0) + Object.values(state.pack).reduce((a,x)=>a+x,0)*.15);
+}
+
+// Only migrate the former standard ranges; custom ranges remain intact.
+export function migrateWeaponRange(item) {
+  const base=WEAPONS.find(x=>x.id===item?.baseId);
+  if(!base||!['broom','umbrella','shovel'].includes(base.id))return;
+  const mods=itemModifiers(item);
+  const min=base.minRange+mods.reduce((n,m)=>n+(m.changes?.minRange||0),0);
+  const max=base.maxRange+mods.reduce((n,m)=>n+(m.changes?.maxRange||0),0);
+  if(item.minRange===min+1&&item.maxRange===max+1){item.minRange=min;item.maxRange=max;}
 }
