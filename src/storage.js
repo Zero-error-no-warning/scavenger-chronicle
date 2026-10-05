@@ -1,9 +1,9 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES } from './data.js?v=0.2.4';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.4';
-import { shuffled } from './random.js?v=0.2.4';
-import { abilities, playerActor } from './combat.js?v=0.2.4';
-import { itemPlan } from './consumables.js?v=0.2.4';
-import { migrateWeaponRange } from './items.js?v=0.2.4';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES, ROAD_OBSTACLES } from './data.js?v=0.2.6';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.6';
+import { shuffled } from './random.js?v=0.2.6';
+import { abilities, playerActor } from './combat.js?v=0.2.6';
+import { itemPlan } from './consumables.js?v=0.2.6';
+import { migrateWeaponRange } from './items.js?v=0.2.6';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
@@ -11,6 +11,7 @@ const num=(x,min=0,max=1e6)=>typeof x==='number'&&Number.isFinite(x)&&x>=min&&x<
 const arr=(x,max=1000)=>Array.isArray(x)&&x.length<=max;
 const text=x=>typeof x==='string'&&x.length<1000;
 const isId=(x,values)=>values.includes(x);
+const adjacent=(a,b)=>Math.abs(a%5-b%5)+Math.abs(Math.floor(a/5)-Math.floor(b/5))===1;
 export function validateSave(s) {
   const fail=()=>{throw new Error('セーブデータの形式が違うか、壊れています。元のデータは上書きしていません。');};
   if(!s||![1,BALANCE.saveVersion].includes(s.version))fail();
@@ -28,6 +29,8 @@ export function validateSave(s) {
   if(!arr(s.inventory,100)||!arr(s.stash,16)||[...s.inventory,...s.stash].some(x=>!itemValid(x)))fail();
   if(new Set([...s.inventory,...s.stash].map(x=>x.id)).size!==s.inventory.length+s.stash.length)fail();
   if(!s.equipment||['head','body','weapon'].some(slot=>!s.inventory.some(x=>x.id===s.equipment[slot]&&x.slot===slot)))fail();
+  if(s.roadObstacles===undefined)s.roadObstacles=[[6,7,'wreck'],[7,8,'rubble'],[2,7,'tree'],[12,13,'wreck']].map(([a,b,kind])=>({a,b,kind,hp:ROAD_OBSTACLES[kind].maxHp,maxHp:ROAD_OBSTACLES[kind].maxHp}));
+  if(!arr(s.roadObstacles,22)||s.roadObstacles.some(o=>!o||!Number.isInteger(o.a)||!Number.isInteger(o.b)||!num(o.a,0,14)||!num(o.b,0,14)||!adjacent(o.a,o.b)||!ROAD_OBSTACLES[o.kind]||!Number.isInteger(o.hp)||!num(o.hp,0,ROAD_OBSTACLES[o.kind].maxHp)||o.maxHp!==ROAD_OBSTACLES[o.kind].maxHp)||new Set(s.roadObstacles.map(o=>`${Math.min(o.a,o.b)}-${Math.max(o.a,o.b)}`)).size!==s.roadObstacles.length)fail();
   if(!arr(s.world,15)||s.world.length!==15||s.world.some((node,i)=>node.id!==i||!LOCATIONS.some(x=>x.id===node.locId)||!num(node.visits)||typeof node.seen!=='boolean'||!arr(node.used,6)||node.used.some(x=>!Number.isInteger(x)||!num(x,0,5))))fail();
   if(!arr(s.log,80)||s.log.some(x=>!text(x.text)||!num(x.day)||!num(x.hour,0,23)))fail();
   if(s.exploration&&(!arr(s.exploration.spots,6)||s.exploration.spots.some(x=>!text(x.name)||!num(x.index,0,5)||!Number.isInteger(x.index))||!num(s.exploration.remaining,0,30)))fail();
