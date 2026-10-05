@@ -1,7 +1,7 @@
 import { releaseBattle, resetPile } from '../src/deck.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newGame, move, survey, searchSpot, deposit, install, rest, equip, neighbors, nextRegion } from '../src/world.js';
+import { newGame, move, survey, searchSpot, deposit, depositSupply, takeSupply, install, rest, equip, neighbors, nextRegion, roadObstacle, clearRoadObstacle, atMapEdge } from '../src/world.js';
 import { abilities, abilityBreakdown, beginCombat, damageDice, resolveRound, prepareRound, validatePlan, inRange, playerActor } from '../src/combat.js';
 import { makeItem, generateItem, carriedWeight } from '../src/items.js';
 import { validateSave, parseSave } from '../src/storage.js';
@@ -99,8 +99,8 @@ test('装備変更は能力とキャラクター装備を一緒に更新する',
 test('移動は隣接のみ、徒歩では拠点を動かさない',()=>{
   const s=fresh();assert.ok(move(s,0));assert.equal(s.location,7);assert.equal(move(s,6),null);assert.equal(s.location,6);assert.equal(s.baseLocation,7);assert.ok(s.world[6].seen);
 });
-test('拠点移動は燃料を消費し、家と個人が同じ位置へ進む',()=>{
-  const s=fresh(),fuel=s.pack.fuel+s.baseResources.fuel;assert.equal(move(s,6,true),null);assert.equal(s.location,s.baseLocation);assert.equal(s.pack.fuel+s.baseResources.fuel,fuel-2);
+test('クルマは修理前は動かず、修理後は燃料1・30分で人と一緒に移動する',()=>{
+  const s=fresh(),fuel=s.pack.fuel+s.baseResources.fuel,hour=s.hour;assert.match(move(s,12,true),/故障/);s.modules.push('engine');assert.equal(move(s,12,true),null);assert.equal(s.location,s.baseLocation);assert.equal(s.pack.fuel+s.baseResources.fuel,fuel-1);assert.equal(s.hour,hour+.5);
 });
 test('探索は知覚の数だけ箇所を発見し判断の数だけ手札を引く',()=>{
     const s=newGame(1);assert.equal(survey(s),null);assert.equal(s.exploration.spots.length,2);assert.equal(s.exploration.hand.length,8);assert.equal(s.exploration.remaining,5);assert.equal(s.hour,9);validateSave(s);
@@ -115,8 +115,14 @@ test('寝床の回復と食料・水の消費',()=>{
   const s=fresh();s.modules.push('bed');s.vitals.headHP=3;s.vitals.bodyHP=5;s.vitals.headST=1;s.vitals.bodyST=1;
   const food=s.pack.food+s.baseResources.food;assert.equal(rest(s),null);assert.equal(s.vitals.headHP,6);assert.equal(s.vitals.bodyHP,15);assert.equal(s.vitals.headST,16);assert.equal(s.vitals.bodyST,24);assert.equal(s.pack.food+s.baseResources.food,food-1);validateSave(s);
 });
-test('街の更新はエンジン・燃料が必要、装備と拠点の設備を保持',()=>{
-  const s=fresh();assert.ok(nextRegion(s));s.modules.push('engine');const gear=JSON.stringify(s.inventory);assert.equal(nextRegion(s),null);assert.equal(s.region,2);assert.equal(JSON.stringify(s.inventory),gear);assert.ok(s.modules.includes('engine'));assert.equal(s.location,7);
+test('次の街へは修理済みクルマでマップ端にいる時だけ進める',()=>{
+  const s=fresh();assert.equal(atMapEdge(s),false);assert.ok(nextRegion(s));s.modules.push('engine');assert.ok(nextRegion(s));s.location=s.baseLocation=0;const gear=JSON.stringify(s.inventory);assert.equal(nextRegion(s),null);assert.equal(s.region,2);assert.equal(JSON.stringify(s.inventory),gear);assert.ok(s.modules.includes('engine'));assert.equal(s.location,7);
+});
+test('道路障害はHPを持ち、適切な道具で削り切るまでクルマを止める',()=>{
+  const s=fresh();s.modules.push('engine');const crowbar=s.inventory.find(i=>i.baseId==='crowbar');const block=roadObstacle(s,7,6);assert.ok(block);assert.equal(block.hp,4);assert.match(move(s,6,true),/道路を塞/);assert.equal(clearRoadObstacle(s,6,crowbar.id),null);assert.equal(roadObstacle(s,7,6).hp,2);assert.equal(clearRoadObstacle(s,6,crowbar.id),null);assert.equal(roadObstacle(s,7,6),null);assert.equal(move(s,6,true),null);
+});
+test('手持ち資源と車載収納は1個ずつ相互に出し入れできる',()=>{
+  const s=fresh(),pack=s.pack.food,stored=s.baseResources.food;assert.equal(takeSupply(s,'food'),null);assert.equal(s.pack.food,pack+1);assert.equal(s.baseResources.food,stored-1);assert.equal(depositSupply(s,'food'),null);assert.equal(s.pack.food,pack);assert.equal(s.baseResources.food,stored);
 });
 test('破損セーブ・未知カード・不正装備を読んでも拒否する',()=>{
   assert.throws(()=>parseSave('{}'));
