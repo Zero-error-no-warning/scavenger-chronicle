@@ -35,9 +35,9 @@ export function paintMap(container,state) {
     const ratio=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*ratio);canvas.height=Math.round(height*ratio);
     const ctx=canvas.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.lineCap='round';
     const stroke=(road,color,lineWidth,dashed=false)=>{
-      const {a,b}=road,x=width/720,y=height/270;
-      ctx.beginPath();ctx.moveTo(a.x*x,a.y*y);
-      ctx.bezierCurveTo((a.x+(b.x-a.x)*.3+8)*x,(a.y+(b.y-a.y)*.3-12)*y,(a.x+(b.x-a.x)*.7-8)*x,(a.y+(b.y-a.y)*.7+10)*y,b.x*x,b.y*y);
+      const {a,b}=road,x=(width-104)/720,y=(height-64)/270;
+      ctx.beginPath();ctx.moveTo(52+a.x*x,32+a.y*y);
+      ctx.bezierCurveTo(52+(a.x+(b.x-a.x)*.3+8 )*x,32+(a.y+(b.y-a.y)*.3-12)*y,52+(a.x+(b.x-a.x)*.7-8 )*x,32+(a.y+(b.y-a.y)*.7+10)*y,52+b.x*x,32+b.y*y);
       ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.setLineDash(dashed?[4,6]:[]);ctx.stroke();
     };
     for(const road of roads){stroke(road,'#6e725aaa',7);stroke(road,'#efddad',4);}

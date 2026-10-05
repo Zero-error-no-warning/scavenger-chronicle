@@ -4,7 +4,7 @@ import * as world from './world.js?v=0.2.0';
 import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.0';
 import { icon, character, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.0';
 import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.0';
-import { renderMap, paintMap } from './map.js?v=0.2.0';
+import { renderMap, paintMap } from './map.js?v=0.2.0-2';
 import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.0';
 import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.0';
 import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.0';
@@ -204,7 +204,7 @@ async function handleAction(event) {
     case 'redraw':error=world.redraw(state);selectedSearchCard=null;break;
     case 'chooseSpot':selectedSpot=Number(value);changed=false;break;
     case 'chooseSearchCard':selectedSearchCard=Number(value);changed=false;break;
-    case 'useSearchCard':error=world.searchSpot(state,selectedSpot,selectedSearchCard);if(!error){persist();selectedSearchCard=null;render();await showSearchRoll();}else toast(error);return;
+    case 'useSearchCard':error=world.searchSpot(state,selectedSpot,selectedSearchCard);if(!error){persist();selectedSearchCard=null;if(state.world[state.location].used.includes(selectedSpot))selectedSpot=null;render();await showSearchRoll();}else toast(error);return;
     case 'deckAdd':{const ref=cardPool(state)[Number(value)];if(world.atBase(state)&&deckDraft.length<DECK_SIZE&&deckDraft.filter(r=>refId(r)===refId(ref)).length<ref.limit)deckDraft.push({key:ref.key,source:ref.source});changed=false;break;}
     case 'deckRemove':if(world.atBase(state))deckDraft.splice(Number(value),1);changed=false;break;
     case 'resetDraft':deckDraft=structuredClone(state.deck);changed=false;break;
