@@ -51,3 +51,26 @@ button.ability:hover{background:#adc3a31c;transform:none;border-color:#9cad88}
 }
 
 .action-help-blocked{padding:8px 10px;background:#efd9c4;color:#934f3c;border-radius:6px;font-size:14px}.ability-tooltip .ability-sources small{line-height:1.6}.ability-tooltip .ability-sources span{min-width:0;overflow-wrap:anywhere}
+
+
+/* vehicle travel, road clearing, and vehicle inventory */
+.road-obstacle-marker{position:absolute;z-index:4;transform:translate(-50%,-50%);display:grid;place-items:center;min-width:34px;min-height:30px;padding:2px 5px;border:2px solid #2b2522;border-radius:10px;background:#f0c46f;color:#3b2922;font-weight:900;pointer-events:none;box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.road-obstacle-marker small{display:block;font-size:9px;line-height:1}
+.map-exit-button{position:absolute;z-index:7;right:12px;bottom:10px;display:flex;flex-direction:column;align-items:flex-end;padding:9px 12px;border-radius:12px}
+.map-exit-button small{font-size:10px;opacity:.75}
+.map-node.road-blocked{filter:saturate(.55);opacity:.72}
+.road-work-panel{display:grid;gap:8px;margin:10px 0;padding:10px;border:1px solid var(--line,#c9bea8);border-radius:14px;background:rgba(255,248,229,.72)}
+.road-work-item{display:grid;gap:8px;padding:9px;border-radius:12px;background:rgba(255,255,255,.55)}
+.road-work-item>div:first-child{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.road-work-item span,.road-work-item small{font-size:11px;opacity:.78}
+.road-tool-actions{display:flex;gap:6px;flex-wrap:wrap}
+.road-tool-actions button{flex:1 1 130px}
+.vehicle-resource-list .resource-transfer-row{display:grid;grid-template-columns:auto minmax(72px,1fr) auto 34px auto 34px;gap:6px;align-items:center}
+.vehicle-resource-list .resource-transfer-row>small{white-space:nowrap}
+.vehicle-resource-list .resource-transfer-row>small b{font-size:1.05em}
+.vehicle-broken{border-left:4px solid currentColor}
+@media(max-width:720px){
+  .vehicle-resource-list .resource-transfer-row{grid-template-columns:auto 1fr auto 30px auto 30px;font-size:12px}
+  .road-work-item>div:first-child{display:grid}
+  .map-exit-button{right:8px;bottom:8px;padding:7px 9px}
+}
