@@ -4,7 +4,7 @@ export const BALANCE = {
   combatExecution: { player: 4, enemyMultiplier: 2 },
   softnessFloor: 1, maxDistance: 6, startingDistance: 3,
   search: { goodBase: .38, goodPerception: .09, findBase: .40, findExecution: .12 },
-  packCapacity: 12, maxModifiers: 3, saveVersion: 2,
+  packCapacity: 12, vehicle: { fuelPerMove: 1, moveHours: .5, nextRegionFuel: 3, nextRegionHours: 8 }, maxModifiers: 3, saveVersion: 2,
 };
 export const CARD_TYPES = {
   advance: { name: '踏み込む', kind: 'move', icon: 'advance', bodyCost: 1, headCost: 0, move: -1, desc: '距離を１縮める。', color: 'teal' },
@@ -37,6 +37,11 @@ export const DECK_SIZE=18;
 export const BASIC_COPIES={advance:3,retreat:3,strike:4,heavy:2,throw:3,guard:3,breathe:3,focus:3,escape:2,rummage:4,force:3};
 export const OBSTACLES={
   open:{name:'開いた物資',difficulty:5,art:6},locked:{name:'鍵のかかった収納',difficulty:9,art:3},blocked:{name:'ふさがれた入口',difficulty:8,art:4},overgrown:{name:'草木に埋もれた物資',difficulty:7,art:5},high:{name:'手の届かない高所',difficulty:8,art:7},salvage:{name:'残骸の山',difficulty:8,art:8},
+};
+export const ROAD_OBSTACLES={
+  wreck:{name:'横転した車両',maxHp:4,tools:{crowbar:2,shovel:3},hint:'バール / スコップ'},
+  rubble:{name:'崩れた瓦礫',maxHp:5,tools:{crowbar:2,shovel:3},hint:'バール / スコップ'},
+  tree:{name:'道路を塞ぐ倒木',maxHp:4,tools:{knife:1,axe:3},hint:'ナイフ / 手斧'},
 };
 
 export const BASE_DECK = ['advance','advance','retreat','retreat','strike','strike','strike','guard','guard','breathe','breathe','focus','throw','escape'];
@@ -85,11 +90,11 @@ export const RESOURCES = {
   ...Object.fromEntries(Object.entries(CONSUMABLES).map(([key,d])=>[key,{name:d.name,icon:d.icon,carry:d.carry}])),
 };
 export const MODULES = [
+  {id:'engine',name:'エンジン修理',icon:'van',cost:{scrap:6,fuel:1},text:'最初の目標。修理するとクルマで移動できる。道路1区画につき燃料1・30分。'},
   {id:'bed',name:'ちゃんとした寝床',icon:'bed',cost:{scrap:3,cloth:3},text:'休息時の回復が増える。傷も治しやすくなる。'},
   {id:'workbench',name:'小さな工作台',icon:'gear',cost:{scrap:5,cloth:1},text:'装備を解体するとスクラップを１つ多く回収。'},
-  {id:'storage',name:'増設トランク',icon:'bag',cost:{scrap:4,cloth:2},text:'拠点の装備収納が８枠から１６枠へ。'},
+  {id:'storage',name:'増設トランク',icon:'bag',cost:{scrap:4,cloth:2},text:'車載装備収納が８枠から１６枠へ。'},
   {id:'filter',name:'雨水フィルター',icon:'water',cost:{scrap:4,cloth:3},text:'日をまたぐたび、水を２つ生成する。'},
-  {id:'engine',name:'エンジン修理',icon:'van',cost:{scrap:8,fuel:2},text:'走行の燃料消費を２から１にする。'},
 ];
 export const LOCATIONS = [
   {id:'road',name:'ひび割れた国道',kind:'road',danger:.08,loot:['scrap','fuel'],spots:['放置車のトランク','道路脇の工具箱','止まった給油所','壊れた配送車','高架の下','古い料金所']},
