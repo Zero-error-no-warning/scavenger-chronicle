@@ -72,7 +72,7 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
   }
   if(action==='encounter')return box('近くの気配を追う',`<p>野犬との戦闘を自分から始めます。</p>${note('時間・物資は開始時に消費しません。戦闘中は頭HPが0になると旅が終わります。')}${blocked(unavailable)}`);
   if(action==='deposit')return box('資源を全部しまう',`<p>携行している資源をすべて車載収納へ移します。装備は移しません。</p>${note('時間・物資は消費しません。携行重量が軽くなります。')}${blocked(unavailable||(!home?'クルマの場所でのみ使えます。':''))}`);
-  if(action==='depositSupply')return box(`${RESOURCES[value]?.name||'資源'}を車にしまう',`${list([row('しまう量','1'),row('手持ち',state.pack[value]??0),row('車載',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'クルマの場所でのみ使えます。':!state.pack[value]?'手持ちにありません。':''))}`);
+  if(action==='depositSupply')return box(`${RESOURCES[value]?.name||'資源'}を車にしまう`,`${list([row('しまう量','1'),row('手持ち',state.pack[value]??0),row('車載',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'クルマの場所でのみ使えます。':!state.pack[value]?'手持ちにありません。':''))}`);
   if(action==='takeSupply')return box(`${RESOURCES[value]?.name||'資源'}を持ち出す`,`${list([row('持ち出す量','1'),row('携行重量',`${carriedWeight(state)} / ${BALANCE.packCapacity} → +${resourceWeight(value)}`),row('拠点の在庫',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'拠点でのみ使えます。':!state.baseResources[value]?'拠点に在庫がありません。':carriedWeight(state)+resourceWeight(value)>BALANCE.packCapacity?'携行重量がいっぱいです。':''))}`);
   if(action==='install'){
     const mod=MODULES.find(m=>m.id===value);if(!mod)return '';
