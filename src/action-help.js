@@ -1,23 +1,24 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES } from './data.js?v=0.2.3';
-import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.3';
-import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.3';
-import { carriedWeight } from './items.js?v=0.2.3';
-import { abilityNames } from './ability-help.js?v=0.2.3';
-import { round } from './random.js?v=0.2.3';
-import { escapeHTML as e } from './art.js?v=0.2.3';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.4';
+import { consumableDescription, availableGroup, reservedItems, resourceWeight } from './consumables.js?v=0.2.4';
+import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.4';
+import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.4';
+import { carriedWeight } from './items.js?v=0.2.4';
+import { abilityNames } from './ability-help.js?v=0.2.4';
+import { round } from './random.js?v=0.2.4';
+import { escapeHTML as e } from './art.js?v=0.2.4';
 
-import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.3';
-export const actionHelpActions=new Set(['basicSearch','redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
+import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.4';
+export const actionHelpActions=new Set(['queueSupply','openSupplies','craftBandage','basicSearch','redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
 const n=value=>Number(value.toFixed(2));
 const row=(label,value)=>`<li><span>${e(label)}</span><b>${e(String(value))}</b></li>`;
 const box=(title,body)=>`<div class="ability-help-title"><b>${e(title)}</b></div>${body}`;
 const list=rows=>`<ul class="ability-sources">${rows.join('')}</ul>`;
 const note=text=>`<p class="ability-use">${e(text)}</p>`;
 const blocked=text=>text?`<p class="action-help-blocked">${e(text)}</p>`:'';
-function abilityRows(actor,keys) {
+function abilityRows(actor,keys,battle=false) {
   const detail=abilityBreakdown(actor);
   return keys.map(key=>{
-    const d=detail[key],base=BALANCE.player[key],delta=d.base-base;
+    const d=detail[key],base=battle&&key==='execution'?BALANCE.combatExecution.player:BALANCE.player[key],delta=d.base-base;
     const sources=[actor.armor.head,actor.armor.body,actor.weapon].filter(item=>item.stats?.[key]).map(item=>`${item.name} ${item.stats[key]>0?'+':''}${item.stats[key]}`);
     const gauge={headHP:'頭HP',bodyHP:'体HP',headST:'頭ST',bodyST:'体ST'}[d.gauge];
     return `<li><span>${abilityNames[key]}<small>基礎 ${base} ＋ 装備 ${delta>=0?'+':''}${delta}、${gauge} ${d.current}/${d.maximum} → 切り上げ${sources.length?`<br>${e(sources.join(' / '))}`:''}</small></span><b>${d.value}</b></li>`;
@@ -53,14 +54,16 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
   if(action==='endSearch')return box('手札を片付ける',`${note('残っている手札を捨て札に戻します。発見した未解決の箇所は残り、引き直しで再開できます。時間・STは消費しません。')}`);
   if(action==='rest'){
     const bed=home&&state.modules.includes('bed'),hours=home?(isNight(state)?(6-state.hour+24)%24:6):2;
-    return box(home&&isNight(state)?'朝まで家で休む':home?'家で休む':'物陰で休む',`${list([row('消費','食料 1 / 水 1'),row('使える物資',`食料 ${supplies('food')} / 水 ${supplies('water')}`),row('時間',`${hours} 時間`),row('ST回復',home?'頭・体を全回復':'頭 +6 / 体 +8'),row('HP回復',`頭 +${bed?3:home?1:0} / 体 +${bed?10:home?4:0}`),row('遭遇率',home?'0%（安全な拠点）':`${Math.round(Math.max(encounterRisk(state),encounterRisk(state,'search',(state.hour+2)%24))*.7*100)}%`)])}${note('休息では探索手札を片付けます。拠点では携行品と拠点物資を使えます。夜の拠点では翌朝6時まで休みます。')}${blocked(unavailable||(supplies('food')<1||supplies('water')<1?'食料と水が1つずつ必要です。':''))}`);
+    return box(home&&isNight(state)?'朝まで家で休む':home?'家で休む':'物陰で休む',`${list([row('消費','食事 1 / 飲み物 1'),row('使える物資',`食事 ${availableGroup(state,'food',home)} / 飲み物 ${availableGroup(state,'water',home)}`),row('時間',`${hours} 時間`),row('ST回復',home?'頭・体を全回復':'頭 +6 / 体 +8'),row('HP回復',`頭 +${bed?3:home?1:0} / 体 +${bed?10:home?4:0}`),row('遭遇率',home?'0%（安全な拠点）':`${Math.round(Math.max(encounterRisk(state),encounterRisk(state,'search',(state.hour+2)%24))*.7*100)}%`)])}${note('休息では探索手札を片付けます。拠点では携行品と拠点物資を使えます。夜の拠点では翌朝6時まで休みます。')}${blocked(unavailable||(availableGroup(state,'food',home)<1||availableGroup(state,'water',home)<1?'食事と飲み物が1つずつ必要です。':''))}`);
   }
   if(['deckAdd','deckRemove'].includes(action)){const ref=action==='deckAdd'?cardPool(state)[Number(value)]:(deckDraft||state.deck)[Number(value)],c=ref&&cardInfo(ref,state.inventory);return c?box(c.name,`<p>${e(c.desc)}</p>${list([row('道具',c.sourceName||'基本カード'),row('戦闘',isCombat(c)?'使用可':'使用不可'),row('探索',isExploration(c)?'使用可':'使用不可')])}${note('編集は「この18枚を採用する」で確定します。')}`):'';}
   if(action==='commitDeck')return box('18枚を採用する',`${list([row('場所','拠点のみ'),row('時間','1時間（変更なしなら0時間）')])}${note('探索手札を片付け、18枚の山札を作り直します。')}`);
-  if(action==='consume'){
-    const r=RESOURCES[value];if(!r)return '';
-    const effects={food:'空腹 −35 / 体ST +3',water:'渇き −40 / 頭ST +3',med:'頭HP +3 / 体HP +8'};
-    return box(`${r.name}を使う`,`${list([row('消費',`${r.name} 1`),row('使える数',supplies(value)),row('効果',effects[value])])}${note('時間は進みません。回復は最大値まで。拠点では拠点の在庫も使えます。')}${blocked(unavailable||(!supplies(value)?'物資がありません。':''))}`);
+  if(action==='openSupplies')return box('回復アイテム',`${note(state.combat?'携行品を行動列に追加します。1個につきカードと同じ1行動。予定の取り消しでは消費せず、実行した順番の敵も行動します。':'食事は体ST、水は頭ST、包帯は体HP、医療箱は頭HPを回復します。種類ごとに回復量・重さ・空腹や渇きへの効果が違います。')}`);
+  if(action==='craftBandage')return box('包帯を作る',`${list([row('消費','布 1'),row('成果','包帯 1 / 体HP＋6'),row('時間','1時間'),row('場所','拠点のみ')])}${note('作った包帯は拠点にしまいます。戦闘に使う分は持ち出してください。')}${blocked(unavailable||(!home?'拠点に戻ってください。':supplies('cloth')<1?'布が1つ必要です。':''))}`);
+  if(action==='consume'||action==='queueSupply'){
+    const r=CONSUMABLES[value];if(!r)return '';
+    const b=state.combat,reserved=b?reservedItems(b,value):0,quantity=action==='queueSupply'?state.pack[value]-reserved:supplies(value);
+    return box(`${r.name}を使う`,`${list([row('消費',`${r.name} 1`),row('使える数',quantity),row('効果',consumableDescription(value)),row('手番',action==='queueSupply'?'行動列の1枠':'時間は進まない')])}${note(action==='queueSupply'?'消費は実行時。使用する枠でも敵は行動します。回復は敵の攻撃より先に適用し、最大値までです。予定を取り消してもアイテムは減りません。':'回復は最大値まで。拠点では拠点の在庫も使えます。')}${blocked(action==='queueSupply'?!b||b.resolved||b.result?'行動を選んでいる戦闘中に使えます。':quantity<=0?'未予約の携行品がありません。':b.plan.length>=b.limits.action?'行動上限です。':'':unavailable||(!quantity?'物資がありません。':''))}`);
   }
   if(action==='move'||action==='driving'){
     const fuel=state.modules.includes('engine')?1:2,target=state.world[Number(value)],withBase=action==='driving'||driving;
@@ -69,7 +72,7 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
   }
   if(action==='encounter')return box('近くの気配を追う',`<p>野犬との戦闘を自分から始めます。</p>${note('時間・物資は開始時に消費しません。戦闘中は頭HPが0になると旅が終わります。')}${blocked(unavailable)}`);
   if(action==='deposit')return box('資源を全部しまう',`<p>携行している資源をすべて拠点へ移します。装備は移しません。</p>${note('時間・物資は消費しません。携行重量が軽くなります。')}${blocked(unavailable||(!home?'拠点でのみ使えます。':''))}`);
-  if(action==='takeSupply')return box(`${RESOURCES[value]?.name||'資源'}を持ち出す`,`${list([row('持ち出す量','1'),row('携行重量',`${carriedWeight(state)} / ${BALANCE.packCapacity} → +0.15`),row('拠点の在庫',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'拠点でのみ使えます。':!state.baseResources[value]?'拠点に在庫がありません。':carriedWeight(state)+.15>BALANCE.packCapacity?'携行重量がいっぱいです。':''))}`);
+  if(action==='takeSupply')return box(`${RESOURCES[value]?.name||'資源'}を持ち出す`,`${list([row('持ち出す量','1'),row('携行重量',`${carriedWeight(state)} / ${BALANCE.packCapacity} → +${resourceWeight(value)}`),row('拠点の在庫',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'拠点でのみ使えます。':!state.baseResources[value]?'拠点に在庫がありません。':carriedWeight(state)+resourceWeight(value)>BALANCE.packCapacity?'携行重量がいっぱいです。':''))}`);
   if(action==='install'){
     const mod=MODULES.find(m=>m.id===value);if(!mod)return '';
     return box(mod.name,`<p>${e(mod.text)}</p>${list([row('工作時間','2 時間'),...Object.entries(mod.cost).map(([key,cost])=>row(RESOURCES[key].name,`${cost} 消費 / 在庫 ${supplies(key)}`))])}${blocked(unavailable||(state.modules.includes(value)?'取り付け済みです。':!home?'工作は拠点で行います。':Object.entries(mod.cost).some(([k,c])=>supplies(k)<c)?'材料が足りません。':''))}`);
@@ -85,7 +88,7 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
   if(action==='selectCard'){
     const index=Number(value),c=combatCard(b,index);if(!c)return '';
     const range=c.range==='weapon'?[actor.weapon.minRange,actor.weapon.maxRange]:c.range;
-    return box(c.name,`<p>${e(c.desc)}</p>${list([row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),...(range?[row('有効距離',`${range[0]}〜${range[1]} / 現在 ${b.distance}`)]:[]),...(c.kind==='escape'?[row('離脱距離',`${c.escapeDistance??5}以上`)]:[]),...(c.kind==='attack'?[row('ダイス',`現在の実効 ${a.execution} 個`),...abilityRows(actor,['execution'])]:[])])}${note(!isCombat(c)?'探索専用カードなので、この戦闘では使えません。':c.kind==='attack'?'ダイス数は各行動のST消費前に決まります。先の行動で疲労すると減ります。射程外でもSTを消費します。':'同じ順番の敵カードと同時に解決します。')}${blocked(b.resolved?'このラウンドは解決済みです。':!b.plan.includes(index)&&b.plan.length>=b.limits.action?'行動上限です。選んだカードを外すと追加できます。':'')}`);
+    return box(c.name,`<p>${e(c.desc)}</p>${list([row('ST消費',`頭 ${c.headCost} / 体 ${c.bodyCost}`),...(range?[row('有効距離',`${range[0]}〜${range[1]} / 現在 ${b.distance}`)]:[]),...(c.kind==='escape'?[row('離脱距離',`${c.escapeDistance??5}以上`)]:[]),...(c.kind==='attack'?[row('ダイス',`現在の実効 ${a.execution} 個`),...abilityRows(actor,['execution'],true)]:[])])}${note(!isCombat(c)?'探索専用カードなので、この戦闘では使えません。':c.kind==='attack'?'ダイス数は各行動のST消費前に決まります。先の行動で疲労すると減ります。射程外でもSTを消費します。':'同じ順番の敵カードと同時に解決します。')}${blocked(b.resolved?'このラウンドは解決済みです。':!b.plan.includes(index)&&b.plan.length>=b.limits.action?'行動上限です。選んだカードを外すと追加できます。':'')}`);
   }
   if(action==='resolve')return box('この行動列で実行',`${list([row('選んだ行動',`${b.plan.length} / ${b.limits.action} 回`),row('敵の行動',`${b.enemyPlan.length} 回`),row('ST消費の合計',`頭 ${b.plan.reduce((sum,i)=>sum+combatCard(b,i).headCost,0)} / 体 ${b.plan.reduce((sum,i)=>sum+combatCard(b,i).bodyCost,0)}`)])}${note('双方の同じ順番を同時に解決。移動・回復・防御の後に攻撃します。敵の攻撃によるST減少で、後の行動が不発になることもあります。')}${blocked(b.resolved?'このラウンドは解決済みです。':validatePlan(b))}`);
   if(action==='passRound')return box('このラウンドは待機',`<p>あなたは行動せず、相手の ${b.enemyPlan.length} 回の予定だけを解決します。</p>${note('STは消費しませんが、敵からのダメージは受けます。待機だけではSTは回復しません。')}${blocked(b.plan.length?'選んだカードをすべて外すと待機できます。':'')}`);

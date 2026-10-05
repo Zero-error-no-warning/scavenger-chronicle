@@ -1,8 +1,9 @@
-import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.3';
-import { equipped } from './items.js?v=0.2.3';
-import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.3';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.4';
+import { itemPlan, applyConsumable, gaugeNames } from './consumables.js?v=0.2.4';
+import { equipped } from './items.js?v=0.2.4';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.4';
 
-import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.3';
+import { drawShared, releaseExploration, releaseBattle, combatCard, planKey, isCombat } from './deck.js?v=0.2.4';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
@@ -44,6 +45,7 @@ export function beginCombat(state,enemyId) {
   const b={round:0,distance:BALANCE.startingDistance,player,enemy:enemyActor(def),enemyId:def.id,text:def.text,
     playerDeckSource:state.deck.map(x=>x.key),enemyDeckSource:[...def.deck],playerDeck:[],enemyDeck:[],plan:[],history:[],result:null,resolved:false};
   releaseExploration(state);b.sharedDeck=true;b.handDiscarded=true;b.playerTools=structuredClone(state.inventory);
+  b.supplies=structuredClone(state.pack);
   state.combat=b;
   prepareRound(state,b);
   return b;
@@ -83,7 +85,7 @@ export function prepareRound(state,b) {
     brain=clamp(brain-card.headCost+(card.headRecovery||0),0,b.enemy.max.headST);
     distance=clamp(distance+(card.move||0),0,BALANCE.maxDistance);
   }
-  b.plan=[];
+  b.plan=[];b.supplies=structuredClone(state.pack);
   b.enemyResolution=b.enemyPlan.map(()=>'pending');
   b.revealedEnemyIndices=shuffled(state,b.enemyPlan.map((_,i)=>i)).slice(0,b.limits.perception).sort((a,c)=>a-c);
 }
@@ -111,12 +113,16 @@ export function damageDice(target,weapon,dice,power=1,guard=false) {
   target.headST=round(Math.max(0,target.headST-headST));
   return {hits,bodyHP,headHP:round(headHP+overflow),bodyST,headST,overflow};
 }
-export function validatePlan(b) {
-  if(!b.plan.length)return 'カードを１枚以上選んでください。';
+export function validatePlan(b,supplies=b.supplies||{}) {
+  if(!b.plan.length)return 'カードかアイテムを１つ以上選んでください。';
   if(b.plan.length>b.limits.action)return '行動数を超えています。';
-  if(new Set(b.plan).size!==b.plan.length)return '同じ手札を二度選ぶことはできません。';
+  const cards=b.plan.filter(Number.isInteger);
+  if(new Set(cards).size!==cards.length)return '同じ手札を二度選ぶことはできません。';
+  const reserved={};
   let brain=b.player.headST,body=b.player.bodyST;
   for(const index of b.plan) {
+    if(!Number.isInteger(index)&&!itemPlan(index))return '予定の形式が違います。';
+    if(itemPlan(index)){reserved[index.item]=(reserved[index.item]||0)+1;if(reserved[index.item]>(supplies[index.item]||0))return '携行しているアイテムが足りません。';}
     const c=combatCard(b,index);
     if(!c?.kind)return '手札が見つかりません。';
     if(!isCombat(c))return '探索専用カードは戦闘で使えません。';
@@ -128,15 +134,15 @@ export function validatePlan(b) {
 }
 export function resolveRound(state,b,{pass=false}={}) {
   if(b.resolved||b.result)throw new Error('このラウンドは解決済みです。');
-  const error=pass&&!b.plan.length?null:validatePlan(b);
+  const error=pass&&!b.plan.length?null:validatePlan(b,state.pack);
   if(error)throw new Error(error);
-  const playerPlan=b.plan.map(i=>b.hand[i]);
+  const playerPlan=b.plan.map(i=>planKey(b,i));
   const enemyPlan=[...b.enemyPlan];
   b.enemyResolution=enemyPlan.map(()=>'pending');
   const frames=[];
   for(let slot=0;slot<Math.max(1,playerPlan.length,enemyPlan.length);slot++) {
     const before={distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),enemyResolution:[...(b.enemyResolution||b.enemyPlan.map(()=>'pending'))]};
-    const messages=pass&&slot===0?['あなた：このラウンドは待機。']:[],commands=[];
+    const messages=pass&&slot===0?['あなた：このラウンドは待機。']:[],commands=[],recoveries=[];
     for(const [side,plan] of [['player',playerPlan],['enemy',enemyPlan]]) {
       const actor=b[side], key=plan[slot],card=side==='player'&&key?combatCard(b,b.plan[slot]):CARD_TYPES[key];
       if(!card)continue;
@@ -150,7 +156,10 @@ export function resolveRound(state,b,{pass=false}={}) {
     b.distance=clamp(b.distance+commands.reduce((sum,x)=>sum+(x.card.move||0),0),0,BALANCE.maxDistance);
     for(const c of commands) {
       if(c.card.kind==='move')messages.push(`${c.actor.name}：${c.card.name}。`);
-      if(c.card.kind==='recover') {
+      if(c.card.consumable&&c.side==='player'){
+        const key=c.card.consumable;state.pack[key]--;b.supplies[key]--;const recovery=applyConsumable(state,c.actor,key);
+        recoveries.push({side:c.side,...recovery});messages.push(`あなた：${c.card.name}。${gaugeNames[recovery.target]}＋${recovery.amount}。`);
+      } else if(c.card.kind==='recover') {
         c.actor.bodyST=clamp(c.actor.bodyST+(c.card.bodyRecovery||0),0,c.actor.max.bodyST);
         c.actor.headST=clamp(c.actor.headST+(c.card.headRecovery||0),0,c.actor.max.headST);
         messages.push(`${c.actor.name}：${c.card.name}。`);
@@ -190,7 +199,7 @@ export function resolveRound(state,b,{pass=false}={}) {
     if(b.result)b.enemyResolution=b.enemyResolution.map(value=>value==='pending'?'cancelled':value);
     b.history.push(...messages);
     b.history=b.history.slice(-60);
-    frames.push({slot:slot+1,before,ready,enemyResolution:[...b.enemyResolution],playerStatus:status('player'),enemyStatus:status('enemy'),distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),messages,effects,result:b.result,playerCard:playerPlan[slot],enemyCard:enemyPlan[slot]});
+    frames.push({slot:slot+1,before,ready,enemyResolution:[...b.enemyResolution],playerStatus:status('player'),enemyStatus:status('enemy'),distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),messages,effects,recoveries,result:b.result,playerCard:playerPlan[slot],enemyCard:enemyPlan[slot]});
     if(b.result)break;
   }
   for(const key of ['headHP','bodyHP','headST','bodyST'])state.vitals[key]=b.player[key];

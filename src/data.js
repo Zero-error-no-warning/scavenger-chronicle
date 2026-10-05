@@ -68,7 +68,22 @@ export const MODIFIERS = [
   { id:'light', name:'薄くて軽い', types:['armor'], changes:{softness:-.3,carry:-.4}, stats:{action:1}, good:'行動＋１・携行重量−0.4', bad:'柔らかさ−0.3', tint:'#c1d9c8' },
   { id:'bright', name:'目立ちすぎる', types:['armor'], stats:{perception:1,judgment:-1}, good:'反射光で知覚＋１', bad:'落ち着かず判断−１', tint:'#e9b869' },
 ];
-export const RESOURCES = { food:{name:'食料',icon:'food'},water:{name:'水',icon:'water'},scrap:{name:'スクラップ',icon:'gear'},cloth:{name:'布',icon:'cloth'},fuel:{name:'燃料',icon:'fuel'},med:{name:'医療品',icon:'medical'} };
+export const CONSUMABLES = {
+  food:{name:'保存食',category:'food',icon:'food',target:'bodyST',amount:6,hunger:35,carry:.15,text:'食べ慣れた、旅の食事。'},
+  dried:{name:'乾パン',category:'food',icon:'food',target:'bodyST',amount:4,hunger:25,thirst:-5,carry:.1,text:'軽くて携行しやすい。口が乾き、渇きが5増える。'},
+  ration:{name:'栄養バー',category:'food',icon:'food',target:'bodyST',amount:7,hunger:25,carry:.1,text:'小さな一口で、動く力を取り戻す。'},
+  canned:{name:'肉の缶詰',category:'food',icon:'food',target:'bodyST',amount:10,hunger:45,carry:.3,text:'重いが、しっかり腹にたまる。'},
+  water:{name:'飲料水',category:'water',icon:'water',target:'headST',amount:5,thirst:40,carry:.15,text:'頭を冷やして、考える力を取り戻す。'},
+  tea:{name:'ボトルのお茶',category:'water',icon:'water',target:'headST',amount:8,thirst:25,carry:.15,text:'集中力を取り戻す。渇きの回復は飲料水より少なめ。'},
+  bandage:{name:'包帯',category:'bandage',icon:'cloth',target:'bodyHP',amount:6,carry:.1,text:'体の傷を手当てする。布1つから作れる。'},
+  dressing:{name:'救急パッド',category:'bandage',icon:'cloth',target:'bodyHP',amount:12,carry:.15,text:'大きな傷を覆う、厚手の手当て用品。'},
+  med:{name:'医療箱',category:'med',icon:'medical',target:'headHP',amount:3,carry:.15,text:'頭の傷を手当てする。体HPは回復しない。'},
+  firstaid:{name:'高品質の医療箱',category:'med',icon:'medical',target:'headHP',amount:5,carry:.3,text:'重めの箱に、手当て用品が揃っている。'},
+};
+export const RESOURCES = {
+  scrap:{name:'スクラップ',icon:'gear'},cloth:{name:'布',icon:'cloth'},fuel:{name:'燃料',icon:'fuel'},
+  ...Object.fromEntries(Object.entries(CONSUMABLES).map(([key,d])=>[key,{name:d.name,icon:d.icon,carry:d.carry}])),
+};
 export const MODULES = [
   {id:'bed',name:'ちゃんとした寝床',icon:'bed',cost:{scrap:3,cloth:3},text:'休息時の回復が増える。傷も治しやすくなる。'},
   {id:'workbench',name:'小さな工作台',icon:'gear',cost:{scrap:5,cloth:1},text:'装備を解体するとスクラップを１つ多く回収。'},

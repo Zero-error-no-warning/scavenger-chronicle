@@ -1,8 +1,9 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES } from './data.js?v=0.2.3';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.3';
-import { shuffled } from './random.js?v=0.2.3';
-import { abilities, playerActor } from './combat.js?v=0.2.3';
-import { migrateWeaponRange } from './items.js?v=0.2.3';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES } from './data.js?v=0.2.4';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.4';
+import { shuffled } from './random.js?v=0.2.4';
+import { abilities, playerActor } from './combat.js?v=0.2.4';
+import { itemPlan } from './consumables.js?v=0.2.4';
+import { migrateWeaponRange } from './items.js?v=0.2.4';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
@@ -17,7 +18,11 @@ export function validateSave(s) {
   for(const key of ['serial','day','region','visits','kills','lootCount'])if(!num(s[key]))fail();
   if(!num(s.rng,1,4294967295)||!Number.isInteger(s.rng)||!num(s.hour,0,23)||!num(s.location,0,14)||!Number.isInteger(s.location)||!num(s.baseLocation,0,14)||!Number.isInteger(s.baseLocation)||!num(s.hunger,0,100)||!num(s.thirst,0,100))fail();
   if(!s.vitals||gaugeKeys.some(k=>!num(s.vitals[k],0,BALANCE.player[k])))fail();
-  for(const resources of [s.pack,s.baseResources])if(!resources||Object.keys(RESOURCES).some(k=>!num(resources[k])||!Number.isInteger(resources[k])))fail();
+  for(const resources of [s.pack,s.baseResources]){
+    if(!resources||Array.isArray(resources)||Object.keys(resources).some(k=>!Object.hasOwn(RESOURCES,k)))fail();
+    for(const key of Object.keys(CONSUMABLES))if(!['food','water','med'].includes(key)&&resources[key]===undefined)resources[key]=0;
+    if(Object.keys(RESOURCES).some(k=>!num(resources[k])||!Number.isInteger(resources[k])))fail();
+  }
   if(!arr(s.modules,5)||s.modules.some(k=>!MODULES.some(m=>m.id===k))||new Set(s.modules).size!==s.modules.length)fail();
   const itemValid=item=>item&&text(item.id)&&text(item.name)&&text(item.visual)&&/^#[\da-f]{6}$/i.test(item.color)&&[...WEAPONS,...ARMOR,...TOOLS].some(x=>x.id===item.baseId)&&isId(item.slot,['head','body','weapon','tool'])&&num(item.carry,.1,50)&&num(item.weight,.1,50)&&num(item.sharpness,0,50)&&num(item.hardness,0,50)&&num(item.softness,1,50)&&arr(item.modifiers,10)&&new Set(item.modifiers).size===item.modifiers.length&&item.modifiers.every(k=>MODIFIERS.some(m=>m.id===k&&m.types.includes(item.type)))&&item.stats&&Object.entries(item.stats).every(([k,v])=>isId(k,statKeys)&&num(v,-20,20))&&(!item.cards||(arr(item.cards,10)&&item.cards.every(k=>!!CARD_TYPES[k])))&&(item.slot!=='weapon'||(num(item.minRange,0,6)&&num(item.maxRange,0,6)));
   if(!arr(s.inventory,100)||!arr(s.stash,16)||[...s.inventory,...s.stash].some(x=>!itemValid(x)))fail();
@@ -38,7 +43,11 @@ export function validateSave(s) {
     if(b.revealedEnemyIndices!==undefined&&(!arr(b.revealedEnemyIndices,100)||new Set(b.revealedEnemyIndices).size!==b.revealedEnemyIndices.length||b.revealedEnemyIndices.some(i=>!Number.isInteger(i)||!num(i,0,b.enemyPlan.length-1))||b.revealedEnemyIndices.length!==Math.min(b.enemyPlan.length,b.limits?.perception??0)))fail();
     if(b.enemyLimits&&statKeys.some(k=>!num(b.enemyLimits[k],0,30)))fail();
     if(b.enemyResolution&&(!arr(b.enemyResolution,100)||b.enemyResolution.length!==b.enemyPlan.length||b.enemyResolution.some(value=>!isId(value,['pending','played','miss','failed','cancelled']))))fail();
-    if(!arr(b.plan,30)||b.plan.some(x=>!Number.isInteger(x)||!num(x,0,b.hand.length-1))||new Set(b.plan).size!==b.plan.length||!num(b.distance,0,6)||!num(b.round,1,1e6)||!arr(b.history,60)||b.history.some(x=>!text(x))||!text(b.text)||!b.limits||statKeys.some(k=>!num(b.limits[k],0,30))||!isId(b.result,[null,'victory','defeat','mutual','escaped'])||typeof b.resolved!=='boolean')fail();
+    if(!arr(b.plan,30)||b.plan.some(x=>!itemPlan(x)&&(!Number.isInteger(x)||!num(x,0,b.hand.length-1)))||new Set(b.plan.filter(Number.isInteger)).size!==b.plan.filter(Number.isInteger).length||!num(b.distance,0,6)||!num(b.round,1,1e6)||!arr(b.history,60)||b.history.some(x=>!text(x))||!text(b.text)||!b.limits||statKeys.some(k=>!num(b.limits[k],0,30))||!isId(b.result,[null,'victory','defeat','mutual','escaped'])||typeof b.resolved!=='boolean')fail();
+    if(b.plan.length>b.limits.action)fail();
+    const reserved={};for(const entry of b.plan)if(itemPlan(entry))reserved[entry.item]=(reserved[entry.item]||0)+1;
+    if(!b.resolved&&Object.entries(reserved).some(([key,n])=>n>s.pack[key]))fail();
+    b.supplies=structuredClone(s.pack);
   }
   // Older saves have no exploration location. Keep used spots authoritative and
   // remove stale candidates without granting new actions or consuming RNG.

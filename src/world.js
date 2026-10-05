@@ -1,14 +1,15 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES } from './data.js?v=0.2.3';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.3';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.3';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.3';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.4';
+import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.4';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.4';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.4';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.4';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.3';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.4';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],
-    vitals:Object.fromEntries(['headHP','bodyHP','headST','bodyST'].map(key=>[key,BALANCE.player[key]])),pack:{food:3,water:3,scrap:0,cloth:0,fuel:1,med:1},
-    baseResources:{food:6,water:6,scrap:4,cloth:2,fuel:3,med:2},inventory:[],stash:[],equipment:{},modules:[],hunger:0,thirst:0,exploration:null,combat:null,log:[],visits:0,kills:0,lootCount:0};
+    vitals:Object.fromEntries(['headHP','bodyHP','headST','bodyST'].map(key=>[key,BALANCE.player[key]])),pack:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:3,water:3,fuel:1,med:1,bandage:2},
+    baseResources:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:6,water:6,scrap:4,cloth:2,fuel:3,med:2,bandage:4,ration:2,tea:2,dressing:1,firstaid:1},inventory:[],stash:[],equipment:{},modules:[],hunger:0,thirst:0,exploration:null,combat:null,log:[],visits:0,kills:0,lootCount:0};
   const weapon=makeItem(s,'broom','sharp'),coat=makeItem(s,'workcoat',null),cap=makeItem(s,'cap',null),knife=makeItem(s,'knife','long');
   s.inventory.push(weapon,coat,cap,knife,makeItem(s,'crowbar',null));
   ensureDeck(s);
@@ -133,7 +134,7 @@ export function searchSpot(s,index,handIndex){
     if(random(s)<.45){const item=generateItem(s,good),collected=carriedWeight(s)+item.carry<=BALANCE.packCapacity;
       s.lastCheck.loot={kind:'item',item:structuredClone(item),quantity:collected?1:0,offered:1};
       if(collected){s.inventory.push(item);s.lootCount++;log(s,`${o.spotName}から「${item.name}」を回収。拠点でカードを組み込める。`);}else log(s,`${item.name}を見つけたが、携行重量がいっぱい。`);}
-    else {const key=pick(s,loc.loot),space=Math.max(0,Math.floor((BALANCE.packCapacity-carriedWeight(s))/.15+1e-6)),n=Math.min(good?3:1,space);s.lastCheck.loot={kind:'resource',key,quantity:n,offered:good?3:1};s.pack[key]+=n;s.lootCount+=n;log(s,`${o.spotName}を調査完了。${{food:'食料',water:'水',scrap:'スクラップ',cloth:'布',fuel:'燃料',med:'医療品'}[key]}を${n}つ回収。`);}
+    else {const key=lootResource(s,pick(s,loc.loot),good),space=Math.max(0,Math.floor((BALANCE.packCapacity-carriedWeight(s))/resourceWeight(key)+1e-6)),n=Math.min(good?3:1,space);s.lastCheck.loot={kind:'resource',key,quantity:n,offered:good?3:1};s.pack[key]+=n;s.lootCount+=n;log(s,`${o.spotName}を調査完了。${RESOURCES[key].name}を${n}つ回収。`);}
   }
   if(random(s)<risk)encounter(s);return null;
 }
@@ -151,23 +152,26 @@ export function deposit(s) {
 }
 export function takeSupply(s,key) {
   if(!atBase(s)||!free(s))return '拠点に戻ってください。';
-  if(!s.baseResources[key])return '拠点に在庫がありません。';
-  if(carriedWeight(s)+.15>BALANCE.packCapacity)return '携行重量がいっぱいです。';
+  if(!Object.hasOwn(RESOURCES,key)||!s.baseResources[key])return '拠点に在庫がありません。';
+  if(carriedWeight(s)+resourceWeight(key)>BALANCE.packCapacity)return '携行重量がいっぱいです。';
   s.baseResources[key]--;s.pack[key]++;return null;
 }
 export function consume(s,key) {
-  if(!free(s))return '戦闘中は物資を使えません。';
+  if(!free(s))return '戦闘中はアイテムを行動列に入れて使ってください。';
+  if(!Object.hasOwn(CONSUMABLES,key))return '回復アイテムが見つかりません。';
   if(!available(s,key))return '物資がありません。';
-  spend(s,key,1);
-  if(key==='food'){s.hunger=Math.max(0,s.hunger-35);s.vitals.bodyST=clamp(s.vitals.bodyST+3,0,BALANCE.player.bodyST);log(s,'食料をゆっくり噛んだ。');}
-  if(key==='water'){s.thirst=Math.max(0,s.thirst-40);s.vitals.headST=clamp(s.vitals.headST+3,0,BALANCE.player.headST);log(s,'水を飲み、ひと息ついた。');}
-  if(key==='med'){s.vitals.headHP=clamp(s.vitals.headHP+3,0,BALANCE.player.headHP);s.vitals.bodyHP=clamp(s.vitals.bodyHP+8,0,BALANCE.player.bodyHP);log(s,'傷を洗って、包帯を巻いた。');}
-  return null;
+  spend(s,key,1);const recovery=applyConsumable(s,s.vitals,key);
+  log(s,`${CONSUMABLES[key].name}を使った。${consumableDescription(key)}（実際の回復＋${recovery.amount}）。`);return null;
+}
+export function craftBandage(s) {
+  if(!free(s)||!atBase(s))return '包帯は拠点で作れます。';
+  if(available(s,'cloth')<1)return '布が1つ必要です。';
+  spend(s,'cloth',1);s.baseResources.bandage++;advanceTime(s,1);log(s,'布から包帯を1つ作り、拠点にしまった。');return null;
 }
 export function rest(s) {
   if(!free(s))return '今は休めません。';
-  if(available(s,'food')<1||available(s,'water')<1)return '休息には食料と水が１つずつ必要です。';
-  spend(s,'food',1);spend(s,'water',1);
+  if(availableGroup(s,'food',atBase(s))<1||availableGroup(s,'water',atBase(s))<1)return '休息には食事と飲み物が１つずつ必要です。';
+  spendGroup(s,'food',atBase(s));spendGroup(s,'water',atBase(s));
   const home=atBase(s),bed=home&&s.modules.includes('bed'),night=isNight(s),risk=Math.max(encounterRisk(s),encounterRisk(s,'search',(s.hour+2)%24));
   releaseExploration(s);
   advanceTime(s,home?(night?(6-s.hour+24)%24:6):2);

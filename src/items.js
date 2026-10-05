@@ -1,5 +1,6 @@
-import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.3';
-import { pick, random, round, shuffled } from './random.js?v=0.2.3';
+import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.4';
+import { resourceWeight } from './consumables.js?v=0.2.4';
+import { pick, random, round, shuffled } from './random.js?v=0.2.4';
 export function makeItem(state, baseId, modifierIds) {
   const base = [...WEAPONS, ...ARMOR, ...TOOLS].find(x => x.id === baseId);
   if (!base) throw new Error('Unknown item base');
@@ -33,7 +34,7 @@ export function generateItem(state, good) {
 export function equipped(state, slot) { return state.inventory.find(x=>x.id===state.equipment[slot]); }
 export function itemModifiers(item) { return (item.modifiers||[]).map(id=>MODIFIERS.find(x=>x.id===id)).filter(Boolean); }
 export function carriedWeight(state) {
-  return round(state.inventory.reduce((a,x)=>a+x.carry,0) + Object.values(state.pack).reduce((a,x)=>a+x,0)*.15);
+  return round(state.inventory.reduce((a,x)=>a+x.carry,0) + Object.entries(state.pack).reduce((a,[key,n])=>a+n*resourceWeight(key),0));
 }
 
 // Only migrate the former standard ranges; custom ranges remain intact.

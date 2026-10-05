@@ -1,5 +1,6 @@
-import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.3';
-import { shuffled } from './random.js?v=0.2.3';
+import { CARD_TYPES, BASIC_COPIES, ITEM_CARDS, DECK_SIZE } from './data.js?v=0.2.4';
+import { itemPlan, consumableCard } from './consumables.js?v=0.2.4';
+import { shuffled } from './random.js?v=0.2.4';
 
 export const refId=ref=>`${ref.key}:${ref.source||''}`;
 export function cardPool(s) {
@@ -11,7 +12,8 @@ export function cardInfo(ref,inventory=[]) {
   if(item){c.sourceName=item.name;if(['pry','cut','dig'].includes(ref.key)||(item.type==='weapon'&&c.kind==='attack'&&c.range==='weapon')){c.ownWeapon={sharpness:item.sharpness,weight:item.weight};if(['tool','weapon'].includes(c.range))c.range=[item.minRange,item.maxRange];}}
   return c;
 }
-export const combatCard=(b,index)=>{const c=cardInfo(b.handRefs?.[index]?.key===b.hand[index]?b.handRefs[index]:{key:b.hand[index]},b.playerTools||[]);return {...c,name:c.combatName||c.name};};
+export const combatCard=(b,index)=>{if(itemPlan(index))return consumableCard(index.item);const c=cardInfo(b.handRefs?.[index]?.key===b.hand[index]?b.handRefs[index]:{key:b.hand[index]},b.playerTools||[]);return {...c,name:c.combatName||c.name};};
+export const planKey=(b,entry)=>itemPlan(entry)?`supply:${entry.item}`:b.hand[entry];
 export const isCombat=c=>c.kind!=='search';
 export const isExploration=c=>!!c.search||c.kind==='recover';
 export function deckError(s,refs) {

@@ -1,6 +1,6 @@
-import { CARD_TYPES } from './data.js?v=0.2.3';
-import { abilities } from './combat.js?v=0.2.3';
-import { cardArt, escapeHTML as e } from './art.js?v=0.2.3';
+import { combatAction, gaugeNames } from './consumables.js?v=0.2.4';
+import { abilities } from './combat.js?v=0.2.4';
+import { cardArt, escapeHTML as e } from './art.js?v=0.2.4';
 
 export function replayPhases(frame,{reduced=false}={}) {
   if(reduced)return [{name:'impact',duration:240}];
@@ -29,8 +29,9 @@ export function cardRoute(frame,side) {
   const key=frame[`${side}Card`],status=frame[`${side}Status`];
   if(!key||status==='wait')return 'wait';
   if(status==='failed'||status==='miss')return status;
+  if(key.startsWith('supply:'))return 'self';
   const other=side==='player'?'enemy':'player';
-  if(frame[`${other}Card`]&&frame[`${other}Status`]==='played')return 'clash';
+  if(frame[`${other}Card`]&&!frame[`${other}Card`].startsWith('supply:')&&frame[`${other}Status`]==='played')return 'clash';
   return frame.effects.some(effect=>effect.side===side)?'body':'self';
 }
 const pips={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
@@ -44,13 +45,14 @@ export const phaseNames={cards:'カードを同時に解決',dice:'ダイスを�
 export function renderResolution(frame,phase=frame.phase) {
   if(!frame)return '';
   const cards=['player','enemy'].map(side=>{
-    const key=frame[`${side}Card`],card=CARD_TYPES[key];if(!card)return '';
+    const key=frame[`${side}Card`],card=combatAction(key);if(!card)return '';
     const route=cardRoute(frame,side),label=route==='failed'?'ST不足で不発':route==='miss'?'射程外':card.combatName||card.name;
     return `<div class="duel-card ${side} ${card.color}" data-route="${route}"><small>${side==='player'?'あなた':'相手'}</small>${cardArt(key)}<b>${e(label)}</b></div>`;
   }).join('');
-  const hits=phase==='impact'?frame.effects.map(effect=>`<div class="hit-burst ${effect.targetSide}" data-target="${effect.targetSide}"><span class="impact-star" aria-hidden="true"></span><b>${effect.damage.headHP?`頭HP −${effect.damage.headHP}`:''}${effect.damage.headHP&&effect.damage.bodyHP?'<br>':''}${effect.damage.bodyHP?`体HP −${effect.damage.bodyHP}`:''}${!effect.damage.headHP&&!effect.damage.bodyHP?'防いだ':''}</b></div>`).join(''):'';
+  const hits=phase==='impact'?frame.effects.map(effect=>`<div class="hit-burst damage-burst ${effect.targetSide}" data-target="${effect.targetSide}"><span class="impact-star" aria-hidden="true"></span><b>${effect.damage.headHP?`頭HP −${effect.damage.headHP}`:''}${effect.damage.headHP&&effect.damage.bodyHP?'<br>':''}${effect.damage.bodyHP?`体HP −${effect.damage.bodyHP}`:''}${!effect.damage.headHP&&!effect.damage.bodyHP?'防いだ':''}</b></div>`).join(''):'';
+  const healing=phase==='impact'?(frame.recoveries||[]).map(r=>`<div class="heal-burst ${r.side}" data-target="${r.side}">${gaugeNames[r.target]} ＋${r.amount}</div>`).join(''):'';
   const dice=frame.effects.length&&phase!=='cards'?`<div class="dice-overlay ${phase==='dice'?'is-rolling':'settled'}">${frame.effects.map(effect=>diceArt(effect,{rolling:phase==='dice'})).join('')}</div>`:'';
-  return `<div class="combat-cinema" data-phase="${phase}" aria-label="行動 ${frame.slot}：${phaseNames[phase]}">${cards}${hits}${dice}</div>`;
+  return `<div class="combat-cinema" data-phase="${phase}" aria-label="行動 ${frame.slot}：${phaseNames[phase]}">${cards}${hits}${healing}${dice}</div>`;
 }
 // Align cards with the rendered actors rather than assuming a screen size.
 export function positionResolution(scene) {
@@ -66,6 +68,6 @@ export function positionResolution(scene) {
     const target=route==='body'?centers[other]:route==='clash'?middle:route==='miss'?{x:(centers[side].x+middle.x)/2,y:(centers[side].y+middle.y)/2}:centers[side];
     for(const axis of ['x','y']){card.style.setProperty(`--from-${axis}`,`${centers[side][axis]}px`);card.style.setProperty(`--to-${axis}`,`${target[axis]}px`);}
   }
-  for(const hit of cinema.querySelectorAll('.hit-burst')){hit.style.left=`${centers[hit.dataset.target].x}px`;hit.style.top=`${centers[hit.dataset.target].y}px`;}
-  for(const side of ['player','enemy'])scene.querySelector(`.scene-${side}`)?.classList.toggle('actor-hit',cinema.dataset.phase==='impact'&&scene.querySelector(`.hit-burst.${side}`)!==null);
+  for(const hit of cinema.querySelectorAll('.hit-burst,.heal-burst')){hit.style.left=`${centers[hit.dataset.target].x}px`;hit.style.top=`${centers[hit.dataset.target].y}px`;}
+  for(const side of ['player','enemy'])scene.querySelector(`.scene-${side}`)?.classList.toggle('actor-hit',cinema.dataset.phase==='impact'&&scene.querySelector(`.damage-burst.${side}`)!==null);
 }

@@ -1,4 +1,5 @@
-import { equipped } from './items.js?v=0.2.3';
+import { CONSUMABLES } from './data.js?v=0.2.4';
+import { equipped } from './items.js?v=0.2.4';
 export const escapeHTML = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const e=escapeHTML;
 // Interface symbols are typography; game illustration uses generated rasters.
@@ -52,6 +53,8 @@ export function landmarkArt(kind) {
 export function toolArt(item){const i=['crowbar','lockpick','rope'].indexOf(item.baseId);return atlas('exploration',Math.max(0,i),0,3,3,'item-art',item.name);}
 export function spotArt(index){return atlas('exploration',index%3,Math.floor(index/3),3,3,'spot-illustration');}
 export function cardArt(key) {
+  const supply=key?.startsWith('supply:')?CONSUMABLES[key.slice(7)]:null;
+  if(supply)return icon(supply.icon,'consumable-art');
   const tools={pry:0,unlock:1,rope:2,rummage:6,force:4};if(key in tools)return spotArt(tools[key]);
   const weapon={cut:'knife',dig:'shovel',sweep:'broom'}[key];if(weapon)return weaponArt({visual:weapon,name:''});
   const order=['advance','retreat','strike','heavy','throw','guard','breathe','focus','escape'];

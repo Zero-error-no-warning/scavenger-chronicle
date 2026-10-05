@@ -1,5 +1,5 @@
-import { RESOURCES } from './data.js?v=0.2.3';
-import { icon, weaponArt, armorArt, toolArt, escapeHTML as e } from './art.js?v=0.2.3';
+import { RESOURCES } from './data.js?v=0.2.4';
+import { icon, weaponArt, armorArt, toolArt, escapeHTML as e } from './art.js?v=0.2.4';
 
 export function lootSummary(loot) {
   const name=loot.kind==='item'?loot.item.name:RESOURCES[loot.key].name;
