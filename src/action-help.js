@@ -1,14 +1,14 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.4';
-import { consumableDescription, availableGroup, reservedItems, resourceWeight } from './consumables.js?v=0.2.4';
-import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.4';
-import { atBase, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.4';
-import { carriedWeight } from './items.js?v=0.2.4';
-import { abilityNames } from './ability-help.js?v=0.2.4';
-import { round } from './random.js?v=0.2.4';
-import { escapeHTML as e } from './art.js?v=0.2.4';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.6';
+import { consumableDescription, availableGroup, reservedItems, resourceWeight } from './consumables.js?v=0.2.6';
+import { abilities, abilityBreakdown, playerActor, validatePlan } from './combat.js?v=0.2.6';
+import { atBase, atMapEdge, roadObstacle, location, neighbors, explorationProgress, stats, isNight, encounterRisk, returnHours, searchOption, obstacle } from './world.js?v=0.2.6';
+import { carriedWeight } from './items.js?v=0.2.6';
+import { abilityNames } from './ability-help.js?v=0.2.6';
+import { round } from './random.js?v=0.2.6';
+import { escapeHTML as e } from './art.js?v=0.2.6';
 
-import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.4';
-export const actionHelpActions=new Set(['queueSupply','openSupplies','craftBandage','basicSearch','redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','takeSupply','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
+import { cardInfo, cardPool, combatCard, isCombat, isExploration } from './deck.js?v=0.2.6';
+export const actionHelpActions=new Set(['queueSupply','openSupplies','craftBandage','basicSearch','redraw','chooseSpot','chooseSearchCard','useSearchCard','deckAdd','deckRemove','commitDeck','survey','search','endSearch','rest','consume','driving','move','encounter','deposit','depositSupply','takeSupply','clearRoad','install','nextRegion','equip','stashItem','retrieveItem','salvage','selectCard','resolve','passRound','nextRound']);
 const n=value=>Number(value.toFixed(2));
 const row=(label,value)=>`<li><span>${e(label)}</span><b>${e(String(value))}</b></li>`;
 const box=(title,body)=>`<div class="ability-help-title"><b>${e(title)}</b></div>${body}`;
@@ -66,21 +66,22 @@ export function actionHelp(state,action,value='',{driving=false,deckDraft=null}=
     return box(`${r.name}を使う`,`${list([row('消費',`${r.name} 1`),row('使える数',quantity),row('効果',consumableDescription(value)),row('手番',action==='queueSupply'?'行動列の1枠':'時間は進まない')])}${note(action==='queueSupply'?'消費は実行時。使用する枠でも敵は行動します。回復は敵の攻撃より先に適用し、最大値までです。予定を取り消してもアイテムは減りません。':'回復は最大値まで。拠点では拠点の在庫も使えます。')}${blocked(action==='queueSupply'?!b||b.resolved||b.result?'行動を選んでいる戦闘中に使えます。':quantity<=0?'未予約の携行品がありません。':b.plan.length>=b.limits.action?'行動上限です。':'':unavailable||(!quantity?'物資がありません。':''))}`);
   }
   if(action==='move'||action==='driving'){
-    const fuel=state.modules.includes('engine')?1:2,target=state.world[Number(value)],withBase=action==='driving'||driving;
-    const name=action==='move'&&target?.seen?LOCATIONS.find(l=>l.id===target.locId).name:action==='driving'?'拠点を動かす':'地図を移動';
-    return box(name,`<p>${withBase?'拠点と一緒に、道路でつながった施設へ移動します。':'徒歩で移動します。拠点は現在の位置に残ります。'}</p>${list([row('区画',action==='move'&&target?`${Number(value)+1}（調査済み ${explorationProgress(state,Number(value)).done.length} / 6）`:`${state.location+1} → 地図で選択`),row('時間','1 時間'),row('体ST消費','1'),row('徒歩の遭遇',withBase?'なし':`${Math.round(Math.max(encounterRisk(state,'walk'),encounterRisk(state,'walk',(state.hour+1)%24))*100)}%（現在の区画を基準。到着先がより危険なら増加）`),row('燃料',withBase?`${fuel} 消費 / 在庫 ${supplies('fuel')}`:'消費なし')])}${action==='driving'?note(driving?'もう一度押すと徒歩移動に切り替えます。':'このボタンで拠点移動に切り替え、地図の光る施設を選ぶと移動します。切り替え自体は物資を消費しません。'):note('現在の探索は終了します。')}${blocked(unavailable||(withBase&&!home?'まず拠点に戻ってください。':action==='move'&&!neighbors(state.location).includes(Number(value))?'道路で直接つながった施設だけ選べます。':withBase&&supplies('fuel')<fuel?'燃料が足りません。':''))}`);
+    const target=state.world[Number(value)],withBase=action==='driving'||driving,block=target?roadObstacle(state,state.location,Number(value)):null;
+    const name=action==='move'&&target?.seen?LOCATIONS.find(l=>l.id===target.locId).name:action==='driving'?'クルマで移動':'地図を移動';
+    return box(name,`<p>${withBase?'クルマで道路を走ります。修理済み・燃料・道路開通が必要です。':'徒歩で移動します。クルマは現在の位置に残ります。'}</p>${list([row('区画',action==='move'&&target?`${Number(value)+1}（調査済み ${explorationProgress(state,Number(value)).done.length} / 6）`:`${state.location+1} → 地図で選択`),row('時間',withBase?'30 分':'1 時間'),row('体ST消費',withBase?'なし':'1'),row('徒歩の遭遇',withBase?'なし':`${Math.round(Math.max(encounterRisk(state,'walk'),encounterRisk(state,'walk',(state.hour+1)%24))*100)}%`),row('燃料',withBase?`1 消費 / 在庫 ${supplies('fuel')}`:'消費なし')])}${action==='driving'?note(driving?'もう一度押すと徒歩移動に切り替えます。':'切り替え自体は物資を消費しません。'):note('現在の探索は終了します。')}${blocked(unavailable||(withBase&&!home?'まずクルマに戻ってください。':withBase&&!state.modules.includes('engine')?'まずエンジンを修理してください。':action==='move'&&!neighbors(state.location).includes(Number(value))?'道路で直接つながった施設だけ選べます。':withBase&&block?`${block.name}を除去してください。`:withBase&&supplies('fuel')<1?'燃料が足りません。':''))}`);
   }
   if(action==='encounter')return box('近くの気配を追う',`<p>野犬との戦闘を自分から始めます。</p>${note('時間・物資は開始時に消費しません。戦闘中は頭HPが0になると旅が終わります。')}${blocked(unavailable)}`);
-  if(action==='deposit')return box('資源を全部しまう',`<p>携行している資源をすべて拠点へ移します。装備は移しません。</p>${note('時間・物資は消費しません。携行重量が軽くなります。')}${blocked(unavailable||(!home?'拠点でのみ使えます。':''))}`);
+  if(action==='deposit')return box('資源を全部しまう',`<p>携行している資源をすべて車載収納へ移します。装備は移しません。</p>${note('時間・物資は消費しません。携行重量が軽くなります。')}${blocked(unavailable||(!home?'クルマの場所でのみ使えます。':''))}`);
+  if(action==='depositSupply')return box(`${RESOURCES[value]?.name||'資源'}を車にしまう',`${list([row('しまう量','1'),row('手持ち',state.pack[value]??0),row('車載',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'クルマの場所でのみ使えます。':!state.pack[value]?'手持ちにありません。':''))}`);
   if(action==='takeSupply')return box(`${RESOURCES[value]?.name||'資源'}を持ち出す`,`${list([row('持ち出す量','1'),row('携行重量',`${carriedWeight(state)} / ${BALANCE.packCapacity} → +${resourceWeight(value)}`),row('拠点の在庫',state.baseResources[value]??0)])}${blocked(unavailable||(!home?'拠点でのみ使えます。':!state.baseResources[value]?'拠点に在庫がありません。':carriedWeight(state)+resourceWeight(value)>BALANCE.packCapacity?'携行重量がいっぱいです。':''))}`);
   if(action==='install'){
     const mod=MODULES.find(m=>m.id===value);if(!mod)return '';
     return box(mod.name,`<p>${e(mod.text)}</p>${list([row('工作時間','2 時間'),...Object.entries(mod.cost).map(([key,cost])=>row(RESOURCES[key].name,`${cost} 消費 / 在庫 ${supplies(key)}`))])}${blocked(unavailable||(state.modules.includes(value)?'取り付け済みです。':!home?'工作は拠点で行います。':Object.entries(mod.cost).some(([k,c])=>supplies(k)<c)?'材料が足りません。':''))}`);
   }
-  if(action==='nextRegion')return box('次の街へ走る',`${list([row('燃料',`3 消費 / 在庫 ${supplies('fuel')}`),row('時間','8 時間')])}${note('装備・資源・拠点設備は引き継ぎ、現在の地域の地図と探索状況を更新します。エンジン修理が必要です。')}${blocked(unavailable||(!home?'拠点に戻ってください。':!state.modules.includes('engine')?'まずエンジンを修理してください。':supplies('fuel')<3?'燃料が3必要です。':''))}`);
+  if(action==='nextRegion')return box('次の街へ走る',`${list([row('燃料',`${BALANCE.vehicle.nextRegionFuel} 消費 / 在庫 ${supplies('fuel')}`),row('時間',`${BALANCE.vehicle.nextRegionHours} 時間`)])}${note('クルマでマップ端まで移動してから出発します。装備・資源・設備は引き継ぎ、地域の地図と探索状況は更新します。')}${blocked(unavailable||(!home?'クルマに戻ってください。':!atMapEdge(state)?'マップ端までクルマで移動してください。':!state.modules.includes('engine')?'まずエンジンを修理してください。':supplies('fuel')<BALANCE.vehicle.nextRegionFuel?`燃料が${BALANCE.vehicle.nextRegionFuel}必要です。`:''))}`);
   if(['equip','stashItem','retrieveItem','salvage'].includes(action)){
     const item=[...state.inventory,...state.stash].find(i=>i.id===value);if(!item)return '';
-    const descriptions={equip:'同じ部位の装備を持ち替えます。能力補正と見た目に反映され、カードの採用は拠点のデッキ画面で行います。',stashItem:'拠点に保管し、携行重量から外します。その道具の採用カードを基本カードに差し替えます。',retrieveItem:'拠点から携行品へ戻します。',salvage:`装備を解体し、スクラップを${state.modules.includes('workbench')?3:2}つ得ます。`};
+    const descriptions={equip:'同じ部位の装備を持ち替えます。能力補正と見た目に反映され、カードの採用は拠点のデッキ画面で行います。',stashItem:'車載収納に保管し、携行重量から外します。その道具の採用カードを基本カードに差し替えます。',retrieveItem:'車載収納から携行品へ戻します。',salvage:`装備を解体し、スクラップを${state.modules.includes('workbench')?3:2}つ得ます。`};
     const equipped=Object.values(state.equipment).includes(value);
     return box(item.name,`<p>${e(descriptions[action])}</p>${list([row('携行重量',item.carry),...Object.entries(item.stats||{}).map(([key,delta])=>row(abilityNames[key],`${delta>=0?'+':''}${delta}`))])}${note('時間は進みません。')}${blocked(unavailable||(action==='equip'?(equipped?'装備中です。':''):!home?'拠点でのみ使えます。':equipped?'装備を持ち替えてから操作してください。':action==='stashItem'&&state.stash.length>=(state.modules.includes('storage')?16:8)?'拠点の収納がいっぱいです。':action==='retrieveItem'&&carriedWeight(state)+item.carry>BALANCE.packCapacity?'携行重量がいっぱいです。':''))}`);
   }
