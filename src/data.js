@@ -3,7 +3,7 @@ export const BALANCE = {
   player: { headHP: 10, bodyHP: 30, headST: 16, bodyST: 24, perception: 2, judgment: 5, action: 3, execution: 2 },
   softnessFloor: 1, maxDistance: 6, startingDistance: 3,
   search: { goodBase: .38, goodPerception: .09, findBase: .40, findExecution: .12 },
-  packCapacity: 12, maxModifiers: 3, saveVersion: 1,
+  packCapacity: 12, maxModifiers: 3, saveVersion: 2,
 };
 export const CARD_TYPES = {
   advance: { name: '踏み込む', kind: 'move', icon: 'advance', bodyCost: 1, headCost: 0, move: -1, desc: '距離を１縮める。', color: 'teal' },
@@ -16,6 +16,28 @@ export const CARD_TYPES = {
   focus: { name: '頭を冷やす', kind: 'recover', icon: 'eye', bodyCost: 0, headCost: 0, bodyRecovery: 2, headRecovery: 7, desc: '頭ST＋７、体ST＋２。', color: 'blue' },
   escape: { name: '離脱する', kind: 'escape', icon: 'exit', bodyCost: 3, headCost: 1, desc: '距離５以上で戦闘から離脱。', color: 'gold' },
 };
+Object.assign(CARD_TYPES, {
+  rummage:{name:'周辺を探す',kind:'search',bodyCost:1,headCost:1,color:'gold',search:{open:1,salvage:0,overgrown:0,high:-2},desc:'開いた棚・残骸・草むらを探す。探索専用。'},
+  force:{name:'力ずくで開く',kind:'attack',bodyCost:3,headCost:1,power:.6,range:[0,1],ownWeapon:{sharpness:0,weight:.6},color:'coral',search:{locked:0,blocked:1,open:0,salvage:0},noise:.15,desc:'鍵や障害物に挑む。戦闘では素手の打撃。探索時は遭遇率＋15ポイント。'},
+  pry:{name:'バールでこじ開ける',kind:'attack',bodyCost:2,headCost:0,power:1,range:[0,1],color:'coral',search:{locked:3,blocked:3,salvage:2,open:1},desc:'鍵・障害物の探索判定＋3。戦闘でもバールで打撃。'},
+  unlock:{name:'鍵を開ける',kind:'search',bodyCost:0,headCost:2,color:'blue',search:{locked:4,open:1},desc:'鍵の探索判定＋4。探索専用。'},
+  rope:{name:'ロープを使う',kind:'move',move:1,bodyCost:1,headCost:1,color:'teal',search:{high:4,blocked:1},desc:'高所の探索判定＋4。戦闘では距離を1広げる。'},
+  cut:{name:'ナイフで切り開く',kind:'attack',bodyCost:2,headCost:0,power:1,range:'tool',color:'coral',search:{overgrown:3,open:1},desc:'草むらの探索判定＋3。戦闘ではこのナイフで攻撃。'},
+  dig:{name:'スコップで掘る',kind:'attack',bodyCost:3,headCost:0,power:1,range:'tool',color:'coral',search:{blocked:3,salvage:3,overgrown:1},desc:'障害物・残骸の探索判定＋3。戦闘ではこのスコップで攻撃。'},
+  sweep:{name:'箒で払いのける',kind:'guard',bodyCost:1,headCost:0,color:'teal',search:{overgrown:2,open:2,salvage:1},desc:'棚・草むらの探索判定＋2。戦闘では防御。'},
+});
+export const TOOLS=[
+  {id:'crowbar',name:'バール',slot:'tool',carry:1.2,weight:1.2,sharpness:.1,minRange:0,maxRange:1,visual:'crowbar',color:'#c56e48',text:'固い鍵も、重いがれきも。手元にあると心強い。'},
+  {id:'lockpick',name:'鍵開け道具',slot:'tool',carry:.2,visual:'lockpick',color:'#80a99d',text:'小さな錠を静かに外すための道具。'},
+  {id:'rope',name:'丈夫なロープ',slot:'tool',carry:.6,visual:'rope',color:'#cda96e',text:'手の届かない場所への足掛かり。'},
+];
+export const ITEM_CARDS={broom:['sweep'],knife:['cut'],axe:['cut'],shovel:['dig'],crowbar:['pry'],lockpick:['unlock'],rope:['rope']};
+export const DECK_SIZE=18;
+export const BASIC_COPIES={advance:3,retreat:3,strike:4,heavy:2,throw:3,guard:3,breathe:3,focus:3,escape:2,rummage:4,force:3};
+export const OBSTACLES={
+  open:{name:'開いた物資',difficulty:5,art:6},locked:{name:'鍵のかかった収納',difficulty:9,art:3},blocked:{name:'ふさがれた入口',difficulty:8,art:4},overgrown:{name:'草木に埋もれた物資',difficulty:7,art:5},high:{name:'手の届かない高所',difficulty:8,art:7},salvage:{name:'残骸の山',difficulty:8,art:8},
+};
+
 export const BASE_DECK = ['advance','advance','retreat','retreat','strike','strike','strike','guard','guard','breathe','breathe','focus','throw','escape'];
 export const WEAPONS = [
   { id:'broom', name:'箒', sharpness:0, weight:.65, minRange:1, maxRange:2, carry:1, visual:'broom', color:'#d4aa67', cards:['retreat','guard'], text:'掃除が本業。長い柄は間合いを作る。' },

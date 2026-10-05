@@ -1,9 +1,9 @@
-import { WEAPONS, ARMOR, MODIFIERS, BALANCE } from './data.js?v=0.1.5';
-import { pick, random, round, shuffled } from './random.js?v=0.1.5';
+import { WEAPONS, ARMOR, TOOLS, MODIFIERS, BALANCE } from './data.js?v=0.2.0';
+import { pick, random, round, shuffled } from './random.js?v=0.2.0';
 export function makeItem(state, baseId, modifierIds) {
-  const base = [...WEAPONS, ...ARMOR].find(x => x.id === baseId);
+  const base = [...WEAPONS, ...ARMOR, ...TOOLS].find(x => x.id === baseId);
   if (!base) throw new Error('Unknown item base');
-  const type = WEAPONS.includes(base) ? 'weapon' : 'armor';
+  const type = WEAPONS.includes(base) ? 'weapon' : TOOLS.includes(base) ? 'tool' : 'armor';
   const ids = [...new Set(Array.isArray(modifierIds)?modifierIds:modifierIds?[modifierIds]:[])];
   const mods = ids.map(id=>MODIFIERS.find(x=>x.id===id&&x.types.includes(type))).filter(Boolean);
   const item = { ...structuredClone(base), baseId:base.id, id:`item-${++state.serial}`, type, slot:type==='weapon'?'weapon':base.slot, modifiers:mods.map(x=>x.id), name:`${mods.map(x=>x.name).join('・')}${base.name}`, stats:{...base.stats} };
@@ -19,6 +19,7 @@ export function makeItem(state, baseId, modifierIds) {
   return item;
 }
 export function generateItem(state, good) {
+  if(random(state)<.2)return makeItem(state,pick(state,TOOLS).id,null);
   const weapon = random(state) < .58;
   const base = pick(state, weapon ? WEAPONS : ARMOR);
   const options = MODIFIERS.filter(x=>x.types.includes(weapon?'weapon':'armor'));

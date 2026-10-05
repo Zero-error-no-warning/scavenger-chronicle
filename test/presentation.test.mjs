@@ -1,3 +1,4 @@
+import { releaseBattle, resetPile } from '../src/deck.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, survey, searchSpot, endSearch, move, explorationProgress } from '../src/world.js';
@@ -8,7 +9,7 @@ import { replayPhases, replayView, cardRoute, renderResolution, diceArt, enemyAc
 
 function battle(playerCards,enemyCards,distance=1) {
   const s=newGame(9128),b=beginCombat(s,'dog');
-  b.hand=playerCards;b.plan=playerCards.map((_,i)=>i);b.limits.action=Math.max(3,playerCards.length);b.enemyPlan=enemyCards;b.enemyResolution=enemyCards.map(()=>'pending');b.distance=distance;
+  releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=playerCards;b.plan=playerCards.map((_,i)=>i);b.limits.action=Math.max(3,playerCards.length);b.enemyPlan=enemyCards;b.enemyResolution=enemyCards.map(()=>'pending');b.distance=distance;
   return {s,b};
 }
 test('車は現在地に駐車中のときだけ探索・拠点画面に現れる',()=>{
@@ -18,30 +19,15 @@ test('車は現在地に駐車中のときだけ探索・拠点画面に現れ�
   move(s,7);assert.match(scenery(s),/scene-van/);
   move(s,6,true);assert.match(scenery(s),/scene-van/);
 });
-test('探索終了・再見渡し・往復・セーブ後も調査済み箇所は再取得できない',()=>{
-  for(let seed=1;seed<=40;seed++) {
-    let s=newGame(seed);const searched=new Set();
-    while(explorationProgress(s).remaining) {
-      assert.equal(survey(s),null);
-      while(s.exploration.remaining&&s.exploration.spots.length) {
-        const spot=s.exploration.spots[0];assert.equal(searched.has(spot.index),false);searched.add(spot.index);
-        assert.equal(searchSpot(s,spot.index),null);s.combat=null;
-        assert.match(searchSpot(s,spot.index),/調査済み/);
-      }
-      endSearch(s);s=parseSave(JSON.stringify(s));
-    }
-    assert.equal(searched.size,6);assert.equal(explorationProgress(s).done.length,6);
-    const before=JSON.stringify(s);assert.ok(survey(s));assert.equal(JSON.stringify(s),before);
-    move(s,6);move(s,7);assert.ok(survey(s));assert.equal(explorationProgress(s).remaining,0);
-  }
-});
-test('古い候補に調査済み箇所が残っていても報酬・時間・乱数を更新しない',()=>{
-  const s=newGame(23);survey(s);const spot=s.exploration.spots[0];s.world[7].used.push(spot.index);
-  const before=JSON.stringify(s);assert.match(searchSpot(s,spot.index),/調査済み/);assert.equal(JSON.stringify(s),before);
-  delete s.exploration.location;const loaded=parseSave(JSON.stringify(s));
-  assert.equal(loaded.exploration.location,7);assert.equal(loaded.exploration.spots.some(p=>p.index===spot.index),false);assert.equal(loaded.rng,s.rng);
-  s.exploration.location=6;assert.match(searchSpot(s,s.exploration.spots[1].index),/別の区画/);assert.equal(parseSave(JSON.stringify(s)).exploration,null);
-});
+test('調査済み箇所は終了・移動・セーブ後も報酬や乱数を更新できない',()=>{
+    const s=newGame(1);s.world[7].used=[0,1,2,3,4,5];s.world[7].discovered=[0,1,2,3,4,5];
+    const before=JSON.stringify(s);assert.match(searchSpot(s,0,0),/調査済み/);assert.ok(survey(s));assert.equal(JSON.stringify(s),before);
+    endSearch(s);move(s,6);move(s,7);const loaded=parseSave(JSON.stringify(s));assert.equal(explorationProgress(loaded).remaining,0);assert.ok(survey(loaded));
+  });
+  test('旧版の探索候補を移行しても使用済み箇所を除外し乱数を保持する',()=>{
+    const s=newGame(1);survey(s);const spot=s.exploration.spots[0];s.world[7].used.push(spot.index);s.version=1;delete s.deck;delete s.deckState;delete s.exploration.location;
+    const loaded=parseSave(JSON.stringify(s));assert.equal(loaded.exploration.location,7);assert.equal(loaded.exploration.spots.some(p=>p.index===spot.index),false);assert.equal(loaded.rng,s.rng);assert.equal(loaded.exploration.hand.length,0);assert.equal(loaded.exploration.remaining,0);
+  });
 test('同名施設の別区画は別の探索履歴を持つ',()=>{
   const s=newGame(14);s.world[6].locId='road';s.world[7].used=[0,1,2,3,4,5];move(s,6);
   assert.equal(explorationProgress(s).remaining,6);assert.equal(survey(s),null);

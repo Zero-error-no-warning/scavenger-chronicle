@@ -1,6 +1,8 @@
-import { BALANCE, BASE_DECK, CARD_TYPES, ENEMIES } from './data.js?v=0.1.5';
-import { equipped } from './items.js?v=0.1.5';
-import { clamp, pick, random, round, shuffled } from './random.js?v=0.1.5';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.0';
+import { equipped } from './items.js?v=0.2.0';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.0';
+
+import { drawShared, releaseExploration, releaseBattle, combatCard, isCombat } from './deck.js?v=0.2.0';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
@@ -40,7 +42,8 @@ export function beginCombat(state,enemyId) {
   const def=ENEMIES.find(x=>x.id===enemyId)||pick(state,ENEMIES);
   const player=playerActor(state);
   const b={round:0,distance:BALANCE.startingDistance,player,enemy:enemyActor(def),enemyId:def.id,text:def.text,
-    playerDeckSource:[...BASE_DECK,...(player.weapon.cards||[])],enemyDeckSource:[...def.deck],playerDeck:[],enemyDeck:[],plan:[],history:[],result:null,resolved:false};
+    playerDeckSource:state.deck.map(x=>x.key),enemyDeckSource:[...def.deck],playerDeck:[],enemyDeck:[],plan:[],history:[],result:null,resolved:false};
+  releaseExploration(state);b.sharedDeck=true;b.handDiscarded=true;b.playerTools=structuredClone(state.inventory);
   state.combat=b;
   prepareRound(state,b);
   return b;
@@ -51,7 +54,7 @@ export function prepareRound(state,b) {
   b.round++;
   b.limits=abilities(b.player);
   b.limitActor=structuredClone(b.player);
-  b.hand=draw(state,b,'player',b.limits.judgment);
+  releaseBattle(state);b.handRefs=drawShared(state,b.limits.judgment);b.hand=b.handRefs.map(x=>x.key);b.handDiscarded=false;b.sharedDeck=true;b.playerTools=structuredClone(state.inventory);
   const enemyStats=abilities(b.enemy);
   b.enemyLimits={...enemyStats};b.enemyLimitActor=structuredClone(b.enemy);
   const candidates=draw(state,b,'enemy',enemyStats.judgment);
@@ -81,7 +84,7 @@ export function prepareRound(state,b) {
   b.enemyResolution=b.enemyPlan.map(()=>'pending');
 }
 export function inRange(card,actor,distance) {
-  const [min,max]=card.range==='weapon'?[actor.weapon.minRange,actor.weapon.maxRange]:(card.range||[0,0]);
+  const [min,max]=['weapon','tool'].includes(card.range)?[actor.weapon.minRange,actor.weapon.maxRange]:(card.range||[0,0]);
   return distance>=min&&distance<=max;
 }
 // Each die is a separate hit. A 6 redirects the complete hit to the head.
@@ -110,8 +113,9 @@ export function validatePlan(b) {
   if(new Set(b.plan).size!==b.plan.length)return '同じ手札を二度選ぶことはできません。';
   let brain=b.player.headST,body=b.player.bodyST;
   for(const index of b.plan) {
-    const c=CARD_TYPES[b.hand[index]];
-    if(!c)return '手札が見つかりません。';
+    const c=combatCard(b,index);
+    if(!c?.kind)return '手札が見つかりません。';
+    if(!isCombat(c))return '探索専用カードは戦闘で使えません。';
     if(c.headCost>brain||c.bodyCost>body)return '予定の途中でSTが足りなくなります。回復カードを先に入れてください。';
     brain=clamp(brain-c.headCost+(c.headRecovery||0),0,b.player.max.headST);
     body=clamp(body-c.bodyCost+(c.bodyRecovery||0),0,b.player.max.bodyST);
@@ -130,7 +134,7 @@ export function resolveRound(state,b,{pass=false}={}) {
     const before={distance:b.distance,player:structuredClone(b.player),enemy:structuredClone(b.enemy),enemyResolution:[...(b.enemyResolution||b.enemyPlan.map(()=>'pending'))]};
     const messages=pass&&slot===0?['あなた：このラウンドは待機。']:[],commands=[];
     for(const [side,plan] of [['player',playerPlan],['enemy',enemyPlan]]) {
-      const actor=b[side], key=plan[slot],card=CARD_TYPES[key];
+      const actor=b[side], key=plan[slot],card=side==='player'&&key?combatCard(b,b.plan[slot]):CARD_TYPES[key];
       if(!card)continue;
       const execution=abilities(actor).execution;
       if(actor.bodyST<card.bodyCost||actor.headST<card.headCost) { messages.push(`${actor.name}：${card.name}はST不足で不発。`); continue; }
@@ -185,6 +189,6 @@ export function resolveRound(state,b,{pass=false}={}) {
     if(b.result)break;
   }
   for(const key of ['headHP','bodyHP','headST','bodyST'])state.vitals[key]=b.player[key];
-  b.resolved=true;
+  releaseBattle(state);b.resolved=true;
   return frames;
 }

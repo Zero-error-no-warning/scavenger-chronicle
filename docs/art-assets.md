@@ -116,3 +116,7 @@ Production game action CARD ART ATLAS. STRICT Powerpuff Girls-like late-1990s fl
 ```text
 Production transparent PNG game RESOURCE ICON ATLAS. undefined EXACT 3 columns by 2 rows equal cells on a SQUARE canvas. Row1 left FOOD TIN with simple fish graphic, middle WATER BOTTLE with blue fill, right GEARS and metal scrap. Row2 left rolled OLIVE CLOTH, middle orange FUEL JERRY CAN, right cream FIRST AID KIT with single bold RED CROSS. Each complete icon in central70% of cell with empty alpha margins, NO overlaps. Very simple chunky silhouettes readable at 24px, extremely clean thick black contours and flat colors. No text, characters, labels, border, shadow, glow or background.
 ```
+
+## 0.2.0 探索の素材
+
+`assets/art/exploration.webp`：画像生成した透明3×3アトラス。上段にバール・鍵開け道具・ロープ、中段に鍵のかかったロッカー・がれきでふさがれた箱・蔦に覆われた物資、下段に物資棚・高所の荷物・残骸。既存のカード素材を参照し、パワーパフガールズを意識した太い黒輪郭・単純な幾何形・クリーム／翡翠／赤橙／マスタードの色面を指定。セルごとの中心80%内に形を収め、文字・番号・写実・水彩を使わない。PNG生成後に透過WebP（quality88）へ変換。

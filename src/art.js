@@ -1,4 +1,4 @@
-import { equipped } from './items.js?v=0.1.5';
+import { equipped } from './items.js?v=0.2.0';
 export const escapeHTML = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const e=escapeHTML;
 // Interface symbols are typography; game illustration uses generated rasters.
@@ -11,7 +11,7 @@ export function icon(name,cls='') {
 export const locationKinds=['road','shop','clinic','factory','forest','apart','junk','river','tower'];
 function atlas(file,col,row,cols,rows,cls='',label='',style='') {
   const x=cols>1?col/(cols-1)*100:0,y=rows>1?row/(rows-1)*100:0;
-  return `<span class="painted-atlas ${cls}" ${label?`role="img" aria-label="${e(label)}"`:'aria-hidden="true"'} style="background-image:url('./assets/art/${file}.webp?v=0.1.4');background-size:${cols*100}% ${rows*100}%;background-position:${x}% ${y}%;${style}"></span>`;
+  return `<span class="painted-atlas ${cls}" ${label?`role="img" aria-label="${e(label)}"`:'aria-hidden="true"'} style="background-image:url('./assets/art/${file}.webp?v=${file==='exploration'?'0.2.0':'0.1.4'}');background-size:${cols*100}% ${rows*100}%;background-position:${x}% ${y}%;${style}"></span>`;
 }
 const weaponKinds=['broom','knife','pipe','axe','umbrella','shovel'];
 export function weaponArt(item={visual:'broom'},{held=false}={}) {
@@ -49,7 +49,11 @@ export function landmarkArt(kind) {
   const i=Math.max(0,locationKinds.indexOf(kind));
   return atlas('landmarks',i%3,Math.floor(i/3),3,3,'landmark');
 }
+export function toolArt(item){const i=['crowbar','lockpick','rope'].indexOf(item.baseId);return atlas('exploration',Math.max(0,i),0,3,3,'item-art',item.name);}
+export function spotArt(index){return atlas('exploration',index%3,Math.floor(index/3),3,3,'spot-illustration');}
 export function cardArt(key) {
+  const tools={pry:0,unlock:1,rope:2,rummage:6,force:4};if(key in tools)return spotArt(tools[key]);
+  const weapon={cut:'knife',dig:'shovel',sweep:'broom'}[key];if(weapon)return weaponArt({visual:weapon,name:''});
   const order=['advance','retreat','strike','heavy','throw','guard','breathe','focus','escape'];
   const i=Math.max(0,order.indexOf(key));
   return atlas('cards',i%3,Math.floor(i/3),3,3,'card-illustration');
@@ -58,5 +62,5 @@ export function scenery(state,kind='road',{combat=null,camp=false}={}) {
   const i=Math.max(0,locationKinds.indexOf(kind)),distance=combat?.distance??6;
   const playerLeft=combat?12+(6-distance)*3:camp?12:9,enemyRight=12+(6-distance)*3;
   const here=state.location===state.baseLocation;
-  return `<div class="landscape painted-scene ${combat?'combat-art':''} ${camp?'camp-art':''}" role="group" aria-label="${combat?'戦闘の場面':camp&&here?'移動拠点と主人公':'探索の場面'}"><span class="scene-backdrop">${atlas('backgrounds',i%3,Math.floor(i/3),3,3,'scene-background')}</span><span class="scene-shade" aria-hidden="true"></span>${combat?`<span class="scene-enemy" style="right:${enemyRight}%">${enemyArt(combat.enemy.visual)}</span>`:here?`<span class="scene-van">${vanArt(state)}</span>`:''}<span class="scene-player" style="left:${playerLeft}%">${character(state)}</span></div>`;
+  return `<div class="landscape painted-scene ${combat?'combat-art':''} ${camp?'camp-art':''} ${state.hour>=18||state.hour<6?'night-scene':''}" role="group" aria-label="${combat?'戦闘の場面':camp&&here?'移動拠点と主人公':'探索の場面'}"><span class="scene-backdrop">${atlas('backgrounds',i%3,Math.floor(i/3),3,3,'scene-background')}</span><span class="scene-shade" aria-hidden="true"></span>${combat?`<span class="scene-enemy" style="right:${enemyRight}%">${enemyArt(combat.enemy.visual)}</span>`:here?`<span class="scene-van">${vanArt(state)}</span>`:''}<span class="scene-player" style="left:${playerLeft}%">${character(state)}</span></div>`;
 }

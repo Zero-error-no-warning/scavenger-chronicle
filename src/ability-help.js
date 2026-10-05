@@ -1,7 +1,7 @@
-import { BALANCE, WEAPONS, ARMOR } from './data.js?v=0.1.5';
-import { abilityBreakdown } from './combat.js?v=0.1.5';
-import { itemModifiers } from './items.js?v=0.1.5';
-import { escapeHTML as e } from './art.js?v=0.1.5';
+import { BALANCE, WEAPONS, ARMOR } from './data.js?v=0.2.0';
+import { abilityBreakdown } from './combat.js?v=0.2.0';
+import { itemModifiers } from './items.js?v=0.2.0';
+import { escapeHTML as e } from './art.js?v=0.2.0';
 
 export const abilityNames={perception:'知覚',judgment:'判断',action:'行動',execution:'実効'};
 const gaugeNames={headHP:'頭HP',headST:'頭ST',bodyHP:'体HP',bodyST:'体ST'};
@@ -21,13 +21,9 @@ export function abilityHelp(actor,key,{battle=false,frozen=false,missingSnapshot
     }
     if(accounted!==d.base)sources+=`<li><span>その他の補正</span><b>${signed(d.base-accounted)}</b></li>`;
   }else sources=`<li><span>相手の基礎値</span><b>${d.base}</b></li>`;
-  let use=battle?{perception:'敵の予定を公開する枚数',judgment:'このラウンドに引く手札枚数',action:'このラウンドに実行できるカード枚数',execution:'攻撃で振る６面ダイス数'}[key]:{perception:'良い発見の確率',judgment:'一度の見渡しで発見する箇所数の上限',action:'一度の見渡しで調べられる回数',execution:'探索で何かが見つかる確率'}[key];
+  let use=battle?{perception:'敵の予定を公開する枚数',judgment:'このラウンドに引く手札枚数',action:'このラウンドに実行できるカード枚数',execution:'攻撃で振る６面ダイス数'}[key]:{perception:'一度の見渡しで新しく発見する探索箇所数',judgment:'見渡し・引き直しで引く手札枚数',action:'見渡し・引き直し後に使えるカード枚数',execution:'探索判定で振る6面ダイス数（合計＋道具補正）'}[key];
   const value=fixedValue??d.value;
   let extra='';
-  if(!battle&&['perception','execution'].includes(key)){
-    const base=key==='perception'?BALANCE.search.goodBase:BALANCE.search.findBase,step=key==='perception'?BALANCE.search.goodPerception:BALANCE.search.findExecution;
-    extra=`<p class="ability-use">${use}：${number(base*100)}% ＋ ${value} × ${number(step*100)}% ＝ <b>${number(Math.min(.95,base+value*step)*100)}%</b>（上限95%）</p>`;
-  }
   if(remaining!==null)extra+=`<p class="ability-use">開始時 ${value}回 − 使用済み ${value-remaining}回 ＝ 残り <b>${remaining}回</b></p>`;
   if(battle&&!frozen&&roundValue!==null)extra+=`<p class="ability-use">今回のラウンドの確定値は <b>${roundValue}</b>。途中の変化は次のラウンドに反映されます。</p>`;
   if(battle&&key==='perception')extra+='<p class="ability-use">敵の予定枚数より多い分は公開に使いません。</p>';
