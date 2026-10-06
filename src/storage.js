@@ -1,9 +1,9 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES, ROAD_OBSTACLES } from './data.js?v=0.2.6';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.6';
-import { shuffled } from './random.js?v=0.2.6';
-import { abilities, playerActor } from './combat.js?v=0.2.6';
-import { itemPlan } from './consumables.js?v=0.2.6';
-import { migrateWeaponRange } from './items.js?v=0.2.6';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES, ROAD_OBSTACLES } from './data.js?v=0.2.7';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.7';
+import { shuffled } from './random.js?v=0.2.7';
+import { abilities, playerActor } from './combat.js?v=0.2.7';
+import { itemPlan } from './consumables.js?v=0.2.7';
+import { migrateWeaponRange } from './items.js?v=0.2.7';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
@@ -19,6 +19,8 @@ export function validateSave(s) {
   for(const key of ['serial','day','region','visits','kills','lootCount'])if(!num(s[key]))fail();
   if(!num(s.rng,1,4294967295)||!Number.isInteger(s.rng)||!num(s.hour,0,23)||!num(s.location,0,14)||!Number.isInteger(s.location)||!num(s.baseLocation,0,14)||!Number.isInteger(s.baseLocation)||!num(s.hunger,0,100)||!num(s.thirst,0,100))fail();
   if(!s.vitals||gaugeKeys.some(k=>!num(s.vitals[k],0,BALANCE.player[k])))fail();
+  if(s.boosts===undefined)s.boosts={exploration:{},battle:{}};
+  if(!s.boosts||!['exploration','battle'].every(scope=>s.boosts[scope]&&!Array.isArray(s.boosts[scope])&&Object.entries(s.boosts[scope]).every(([k,v])=>statKeys.includes(k)&&num(v,0,10))))fail();
   for(const resources of [s.pack,s.baseResources]){
     if(!resources||Array.isArray(resources)||Object.keys(resources).some(k=>!Object.hasOwn(RESOURCES,k)))fail();
     for(const key of Object.keys(CONSUMABLES))if(!['food','water','med'].includes(key)&&resources[key]===undefined)resources[key]=0;
