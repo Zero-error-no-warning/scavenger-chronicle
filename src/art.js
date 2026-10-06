@@ -1,5 +1,5 @@
-import { CONSUMABLES } from './data.js?v=0.2.4';
-import { equipped } from './items.js?v=0.2.4';
+import { CONSUMABLES } from './data.js?v=0.2.7';
+import { equipped } from './items.js?v=0.2.7';
 export const escapeHTML = value => String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const e=escapeHTML;
 // Interface symbols are typography; game illustration uses generated rasters.
