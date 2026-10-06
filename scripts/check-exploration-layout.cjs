@@ -7,7 +7,7 @@ const assert=require('node:assert/strict');
  for(const [width,height] of [[1536,694],[1920,868],[1440,900],[1366,768],[1024,768],[800,600],[1280,540],[320,844],[390,844]]){
   await p.setViewportSize({width,height});
   await p.evaluate(async()=>{
-   const w=await import('./src/world.js?v=0.2.4'),st=await import('./src/storage.js?v=0.2.4');
+   const w=await import('./src/world.js?v=0.2.7'),st=await import('./src/storage.js?v=0.2.7');
    const s=w.newGame(9);s.world[s.location].discovered=[0,1,2,3,4,5];w.survey(s);st.saveGame(s);
   });await p.reload();await p.locator('.spot-tile').first().waitFor();
   const geometry=await p.evaluate(()=>{
