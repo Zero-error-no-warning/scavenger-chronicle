@@ -43,9 +43,10 @@ function draw(state, battle, side, count) {
 }
 export function beginCombat(state,enemyId) {
   const def=ENEMIES.find(x=>x.id===enemyId)||pick(state,ENEMIES);
+  const battleBoosts=structuredClone(state.boosts?.battle||{});
   const player=playerActor(state,{battle:true});
   if(state.boosts)state.boosts.battle={};
-  const b={round:0,distance:BALANCE.startingDistance,player,enemy:enemyActor(def),enemyId:def.id,text:def.text,
+  const b={round:0,distance:BALANCE.startingDistance,player,enemy:enemyActor(def),enemyId:def.id,text:def.text,battleBoosts,
     playerDeckSource:state.deck.map(x=>x.key),enemyDeckSource:[...def.deck],playerDeck:[],enemyDeck:[],plan:[],history:[],result:null,resolved:false};
   releaseExploration(state);b.sharedDeck=true;b.handDiscarded=true;b.playerTools=structuredClone(state.inventory);
   b.supplies=structuredClone(state.pack);
@@ -57,8 +58,10 @@ export function prepareRound(state,b) {
   if(b.result)throw new Error('終わった戦闘の次のラウンドは開始できません。');
   b.resolved=false;
   b.round++;
-  // Equipment cannot change during combat. Keep the battle-start base so a
-  // "next battle" consumable boost remains active for the whole encounter.
+  // Refresh balance/equipment values between rounds, then reapply the boost
+  // captured when this encounter began.
+  b.player.base=playerActor(state,{battle:true}).base;
+  for(const [key,delta] of Object.entries(b.battleBoosts||{}))if(key in b.player.base)b.player.base[key]+=delta;
   const def=ENEMIES.find(x=>x.id===b.enemyId);if(def)b.enemy.base=enemyActor(def).base;
   b.limits=abilities(b.player);
   b.limitActor=structuredClone(b.player);
