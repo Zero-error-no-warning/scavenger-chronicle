@@ -1,6 +1,6 @@
-import { LOCATIONS } from './data.js?v=0.2.6';
-import { neighbors, roadObstacle, atMapEdge } from './world.js?v=0.2.6';
-import { escapeHTML as e, landmarkArt } from './art.js?v=0.2.6';
+import { LOCATIONS } from './data.js?v=0.2.7';
+import { neighbors, roadObstacle, atMapEdge } from './world.js?v=0.2.7';
+import { escapeHTML as e, landmarkArt } from './art.js?v=0.2.7';
 
 // Decoration has its own deterministic seed. Rendering never consumes gameplay RNG.
 function hash(text) {let n=2166136261;for(const c of text)n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;}
@@ -18,7 +18,7 @@ export function mapLayout(state) {
 }
 export function renderMap(state,{driving=false}={}) {
   const {nodes,roads}=mapLayout(state),reachable=neighbors(state.location),fuel=(state.pack.fuel||0)+(state.baseResources.fuel||0),repaired=state.modules.includes('engine');
-  const obstacleMarks=roads.filter(r=>r.obstacle).map(r=>{const x=(r.a.x+r.b.x)/2,y=(r.a.y+r.b.y)/2,o=r.obstacle;return `<span class="road-obstacle-marker" style="left:calc(${x/720*100}% + ${52-x/720*104}px);top:calc(${y/270*100}% + ${32-y/270*64}px)" title="${e(o.name)} HP ${o.hp}/${o.maxHp}">⚠<small>${o.hp}/${o.maxHp}</small></span>`;}).join('');
+  const obstacleMarks=roads.filter(r=>r.obstacle&&(r.a.seen||r.b.seen)).map(r=>{const x=(r.a.x+r.b.x)/2,y=(r.a.y+r.b.y)/2,o=r.obstacle;return `<span class="road-obstacle-marker ${driving?'driving':''}" style="left:calc(${x/720*100}% + ${52-x/720*104}px);top:calc(${y/270*100}% + ${32-y/270*64}px)" title="${e(o.name)}">!</span>`;}).join('');
   const exit=atMapEdge(state)&&state.location===state.baseLocation?`<button class="map-exit-button" data-action="nextRegion" ${!repaired||fuel<3||state.combat?'disabled':''}>次の街へ →<small>燃料3 / 8時間</small></button>`:'';
   return `<div class="world-map terrain-map"><div class="region-map painted-map" role="group" aria-label="道路で結ばれた周辺地図。施設を選ぶと${driving?'クルマで':'徒歩で'}移動"><canvas class="map-roads" aria-hidden="true"></canvas>${nodes.map(node=>{
     const loc=LOCATIONS.find(l=>l.id===node.locId),current=node.id===state.location,home=node.id===state.baseLocation,block=roadObstacle(state,state.location,node.id);
