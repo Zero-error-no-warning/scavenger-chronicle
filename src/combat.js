@@ -1,9 +1,9 @@
-import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.4';
-import { itemPlan, applyConsumable, gaugeNames } from './consumables.js?v=0.2.4';
-import { equipped } from './items.js?v=0.2.4';
-import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.4';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.7';
+import { itemPlan, applyConsumable, gaugeNames } from './consumables.js?v=0.2.7';
+import { equipped } from './items.js?v=0.2.7';
+import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.7';
 
-import { drawShared, releaseExploration, releaseBattle, combatCard, planKey, isCombat } from './deck.js?v=0.2.4';
+import { drawShared, releaseExploration, releaseBattle, combatCard, planKey, isCombat } from './deck.js?v=0.2.7';
 
 export function abilityBreakdown(actor) {
   return Object.fromEntries([['perception','headHP',0],['judgment','headST',1],['action','bodyHP',1],['execution','bodyST',1]].map(([key,gauge,min])=>{
@@ -19,6 +19,8 @@ export function playerActor(state,{battle=false}={}) {
   for (const slot of ['head','body','weapon']) {
     for (const [key,delta] of Object.entries(equipped(state,slot)?.stats||{})) if (key in base) base[key] += delta;
   }
+  const boosts=state.boosts?.[battle?'battle':'exploration']||{};
+  for(const [key,delta] of Object.entries(boosts))if(key in base)base[key]+=delta;
   return { name:'あなた', visual:'player', ...state.vitals, max:Object.fromEntries(['headHP','bodyHP','headST','bodyST'].map(key=>[key,BALANCE.player[key]])), base,
     weapon:equipped(state,'weapon') || {sharpness:0,weight:.3,minRange:0,maxRange:0},
     armor:{head:equipped(state,'head')||{hardness:0,softness:1},body:equipped(state,'body')||{hardness:0,softness:1}},
@@ -42,6 +44,7 @@ function draw(state, battle, side, count) {
 export function beginCombat(state,enemyId) {
   const def=ENEMIES.find(x=>x.id===enemyId)||pick(state,ENEMIES);
   const player=playerActor(state,{battle:true});
+  if(state.boosts)state.boosts.battle={};
   const b={round:0,distance:BALANCE.startingDistance,player,enemy:enemyActor(def),enemyId:def.id,text:def.text,
     playerDeckSource:state.deck.map(x=>x.key),enemyDeckSource:[...def.deck],playerDeck:[],enemyDeck:[],plan:[],history:[],result:null,resolved:false};
   releaseExploration(state);b.sharedDeck=true;b.handDiscarded=true;b.playerTools=structuredClone(state.inventory);
@@ -158,7 +161,7 @@ export function resolveRound(state,b,{pass=false}={}) {
       if(c.card.kind==='move')messages.push(`${c.actor.name}：${c.card.name}。`);
       if(c.card.consumable&&c.side==='player'){
         const key=c.card.consumable;state.pack[key]--;b.supplies[key]--;const recovery=applyConsumable(state,c.actor,key);
-        recoveries.push({side:c.side,...recovery});messages.push(`あなた：${c.card.name}。${gaugeNames[recovery.target]}＋${recovery.amount}。`);
+        recoveries.push({side:c.side,...recovery});messages.push(`あなた：${c.card.name}。${recovery.summary||`${gaugeNames[recovery.target]}＋${recovery.amount}`}。`);
       } else if(c.card.kind==='recover') {
         c.actor.bodyST=clamp(c.actor.bodyST+(c.card.bodyRecovery||0),0,c.actor.max.bodyST);
         c.actor.headST=clamp(c.actor.headST+(c.card.headRecovery||0),0,c.actor.max.headST);
