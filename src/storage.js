@@ -39,6 +39,8 @@ export function validateSave(s) {
   if(s.exploration?.location!==undefined&&(!num(s.exploration.location,0,14)||!Number.isInteger(s.exploration.location)))fail();
   if(s.combat) {
     const b=s.combat;
+    if(b.battleBoosts===undefined)b.battleBoosts={};
+    if(!b.battleBoosts||Array.isArray(b.battleBoosts)||Object.entries(b.battleBoosts).some(([k,v])=>!statKeys.includes(k)||!num(v,0,10)))fail();
     for(const actor of [b.player,b.enemy,...(b.limitActor?[b.limitActor]:[]),...(b.enemyLimitActor?[b.enemyLimitActor]:[])]) {
       if(!actor||!text(actor.name)||!text(actor.visual)||!actor.max||!actor.base||gaugeKeys.some(k=>!num(actor.max[k],1,1000)||!num(actor[k],0,actor.max[k]))||statKeys.some(k=>!num(actor.base[k],-20,30)))fail();
       if(!actor.weapon||!num(actor.weapon.sharpness,0,50)||!num(actor.weapon.weight,.1,50)||!num(actor.weapon.minRange,0,6)||!num(actor.weapon.maxRange,0,6))fail();
