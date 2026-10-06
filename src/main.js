@@ -1,16 +1,16 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, DECK_SIZE, ITEM_CARDS, CONSUMABLES } from './data.js?v=0.2.6';
-import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js?v=0.2.6';
-import * as world from './world.js?v=0.2.6';
-import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.6';
-import { icon, character, enemyArt, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.6';
-import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.6';
-import { renderMap, paintMap } from './map.js?v=0.2.6';
-import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.6';
-import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.6';
-import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, visibleEnemyIndices, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.6';
-import { cardPool, cardInfo, combatCard, isCombat, isExploration, refId, deckError } from './deck.js?v=0.2.6';
-import { categoryNames, gaugeNames, consumableDescription, reservedItems, queueBattleItem, resourceWeight, combatAction } from './consumables.js?v=0.2.6';
-import { renderLoot, lootSummary } from './loot-presentation.js?v=0.2.6';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, DECK_SIZE, ITEM_CARDS, CONSUMABLES } from './data.js?v=0.2.7';
+import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js?v=0.2.7';
+import * as world from './world.js?v=0.2.7';
+import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.7';
+import { icon, character, enemyArt, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.7';
+import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.7';
+import { renderMap, paintMap } from './map.js?v=0.2.7';
+import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.7';
+import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.7';
+import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, visibleEnemyIndices, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.7';
+import { cardPool, cardInfo, combatCard, isCombat, isExploration, refId, deckError } from './deck.js?v=0.2.7';
+import { categoryNames, gaugeNames, consumableDescription, reservedItems, queueBattleItem, resourceWeight, combatAction } from './consumables.js?v=0.2.7';
+import { renderLoot, lootSummary } from './loot-presentation.js?v=0.2.7';
 const $=s=>document.querySelector(s);
 let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false,replaySkip=false,wakeReplay=null,exportSaveURL=null,selectedSpot=null,selectedSearchCard=null,deckDraft=null;
 try {state=loadGame()||world.newGame();}catch(err){state=world.newGame();saveError=err.message;}
@@ -72,7 +72,7 @@ function openSupplies() {
   const b=state.combat,battle=!!b,home=world.atBase(state)&&!battle;
   const heading=battle?'アイテムを行動列へ':'回復アイテム';
   const intro=battle?`カードと同じく1個で1行動。使用する順番の敵も行動します。携行品だけを使えます。<br>予定 ${b.plan.length} / ${b.limits.action} 行動。消費は実行時です。`:'最大値まで回復します。拠点では保管中の物資も使えます。';
-  const groups=Object.entries(categoryNames).map(([category,label])=>`<section class="consumable-group"><h3>${label}</h3>${Object.entries(CONSUMABLES).filter(([key,d])=>d.category===category&&([category].includes(key)||state.pack[key]||home&&state.baseResources[key])).map(([key,d])=>{const reserved=battle?reservedItems(b,key):0,available=state.pack[key]-reserved+(home?state.baseResources[key]:0);return `<article class="consumable-row"><div class="consumable-picture">${icon(d.icon)}</div><div><b>${e(d.name)}</b><strong>${consumableDescription(key).split(" / ").map(text=>`<span class="effect-token">${e(text)}</span>`).join(" / ")}</strong><small>${e(d.text)}<br>重量 ${d.carry} / 携行 ${state.pack[key]}${battle?`（予約 ${reserved}）`:home?` / 拠点 ${state.baseResources[key]}`:''}</small></div>${button(battle?'queueSupply':'consume',battle?'追加':'使う',{value:key,disabled:available<=0||battle&&(b.resolved||!!b.result||playing||b.plan.length>=b.limits.action),cls:'secondary supply-use'})}</article>`;}).join('')}</section>`).join('');
+  const groups=Object.entries(categoryNames).map(([category,label])=>{const rows=Object.entries(CONSUMABLES).filter(([key,d])=>d.category===category&&((state.pack[key]||0)>0||home&&(state.baseResources[key]||0)>0));if(!rows.length)return '';return `<section class="consumable-group"><h3>${label}</h3>${rows.map(([key,d])=>{const reserved=battle?reservedItems(b,key):0,available=state.pack[key]-reserved+(home?state.baseResources[key]:0);return `<article class="consumable-row"><div class="consumable-picture">${icon(d.icon)}</div><div><b>${e(d.name)}</b><strong>${consumableDescription(key).split(" / ").map(text=>`<span class="effect-token">${e(text)}</span>`).join(" / ")}</strong><small>${e(d.text)}<br>重量 ${d.carry} / 携行 ${state.pack[key]}${battle?`（予約 ${reserved}）`:home?` / 車載 ${state.baseResources[key]}`:''}</small></div>${button(battle?'queueSupply':'consume',battle?'追加':'使う',{value:key,disabled:available<=0||battle&&(b.resolved||!!b.result||playing||b.plan.length>=b.limits.action),cls:'secondary supply-use'})}</article>`;}).join('')}</section>`;}).join('')||'<p class="muted">使える消耗品はありません。</p>';
   openDialog(heading,`<p class="supply-intro">${intro}</p><div class="consumable-catalog">${groups}</div>${button('closeDialog',battle?'行動列に戻る':'閉じる',{cls:'primary full'})}`);
 }
 function clockBoard(){
@@ -107,7 +107,7 @@ function baseMain() {
 }
 function baseControls() {
   const home=world.atBase(state),edge=world.atMapEdge(state),repaired=state.modules.includes('engine'),fuel=state.pack.fuel+state.baseResources.fuel;
-  return `<aside class="commands panel"><div class="section-label">IN OUR HOME ${icon('van')}</div><h2>備えが、明日になる。</h2>${!repaired?'<div class="quiet-note vehicle-broken"><b>エンジン故障中。</b><br>まずスクラップを集めて修理すると、クルマで地図を移動できるようになります。</div>':''}${button('openSupplies',`${icon('bag')}回復アイテムを使う`,{cls:'full secondary'})}${button('craftBandage','布1 → 包帯1を作る / 1時間',{cls:'full secondary',disabled:!home||state.pack.cloth+state.baseResources.cloth<1})}<p class="muted">手持ちと車載収納。矢印で1個ずつ出し入れできます。</p><div class="resource-list vehicle-resource-list">${Object.entries(RESOURCES).map(([key,r])=>`<div class="resource-transfer-row">${icon(r.icon)}<span>${r.name}</span><small>手持ち <b>${state.pack[key]}</b></small>${button('depositSupply','→',{value:key,cls:'icon-button',disabled:!home||!state.pack[key],title:`${r.name}を車にしまう`})}<small>車載 <b>${state.baseResources[key]}</b></small>${button('takeSupply','←',{value:key,cls:'icon-button',disabled:!home||!state.baseResources[key],title:`${r.name}を持ち出す`})}</div>`).join('')}</div>${button('deposit','手持ち資源を全部しまう',{cls:'secondary full',disabled:!home})}${button('rest',`${icon('bed')}${world.isNight(state)?'朝まで車内で休む':'車内で休む'}`,{cls:'secondary full',disabled:!home})}<small class="hint">食事1・飲み物1 / 昼は6時間、夜は朝6時まで。寝床で傷の回復も増える。</small><div class="command-divider"></div><div class="section-label">NEXT STOP</div><h3>まだ知らない街へ。</h3><p class="muted">修理したクルマでマップ端まで行くと「次の街へ」が使えます。</p>${button('nextRegion',`${icon('advance')}次の街へ走る`,{cls:'primary full',disabled:!home||!edge||!repaired||fuel<BALANCE.vehicle.nextRegionFuel})}<small class="hint">${!edge?'現在はマップ端ではありません。':`燃料${BALANCE.vehicle.nextRegionFuel} / ${BALANCE.vehicle.nextRegionHours}時間。この地域の地図と探索状況はリセットされます。`}</small></aside>`;
+  return `<aside class="commands panel"><div class="section-label">IN OUR HOME ${icon('van')}</div><h2>備えが、明日になる。</h2>${!repaired?'<div class="quiet-note vehicle-broken"><b>エンジン故障中。</b><br>まずスクラップを集めて修理すると、クルマで地図を移動できるようになります。</div>':''}${button('openSupplies',`${icon('bag')}回復アイテムを使う`,{cls:'full secondary'})}${button('craftBandage','布1 → 包帯1を作る / 1時間',{cls:'full secondary',disabled:!home||state.pack.cloth+state.baseResources.cloth<1})}<p class="muted">手持ちと車載収納。消耗品は見つけた種類だけ表示されます。</p><div class="resource-list vehicle-resource-list">${Object.entries(RESOURCES).filter(([key])=>['scrap','cloth','fuel'].includes(key)||(state.pack[key]||0)+(state.baseResources[key]||0)>0).map(([key,r])=>`<div class="resource-transfer-row">${icon(r.icon)}<span>${r.name}</span><small>手持ち <b>${state.pack[key]}</b></small>${button('depositSupply','→',{value:key,cls:'icon-button',disabled:!home||!state.pack[key],title:`${r.name}を車にしまう`})}<small>車載 <b>${state.baseResources[key]}</b></small>${button('takeSupply','←',{value:key,cls:'icon-button',disabled:!home||!state.baseResources[key],title:`${r.name}を持ち出す`})}</div>`).join('')}</div>${button('deposit','手持ち資源を全部しまう',{cls:'secondary full',disabled:!home})}${button('rest',`${icon('bed')}${world.isNight(state)?'朝まで車内で休む':'車内で休む'}`,{cls:'secondary full',disabled:!home})}<small class="hint">食事1・飲み物1 / 昼は6時間、夜は朝6時まで。寝床で傷の回復も増える。</small><div class="command-divider"></div><div class="section-label">NEXT STOP</div><h3>まだ知らない街へ。</h3><p class="muted">修理したクルマでマップ端まで行くと「次の街へ」が使えます。</p>${button('nextRegion',`${icon('advance')}次の街へ走る`,{cls:'primary full',disabled:!home||!edge||!repaired||fuel<BALANCE.vehicle.nextRegionFuel})}<small class="hint">${!edge?'現在はマップ端ではありません。':`燃料${BALANCE.vehicle.nextRegionFuel} / ${BALANCE.vehicle.nextRegionHours}時間。この地域の地図と探索状況はリセットされます。`}</small></aside>`;
 }
 function itemCard(item,stored=false) {
   const mods=itemModifiers(item),isEquipped=state.equipment[item.slot]===item.id;
