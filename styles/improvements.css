@@ -54,8 +54,8 @@ button.ability:hover{background:#adc3a31c;transform:none;border-color:#9cad88}
 
 
 /* vehicle travel, road clearing, and vehicle inventory */
-.road-obstacle-marker{position:absolute;z-index:4;transform:translate(-50%,-50%);display:grid;place-items:center;min-width:34px;min-height:30px;padding:2px 5px;border:2px solid #2b2522;border-radius:10px;background:#f0c46f;color:#3b2922;font-weight:900;pointer-events:none;box-shadow:0 2px 0 rgba(0,0,0,.18)}
-.road-obstacle-marker small{display:block;font-size:9px;line-height:1}
+.road-obstacle-marker{position:absolute;z-index:4;transform:translate(-50%,-50%);display:grid;place-items:center;width:17px;height:17px;padding:0;border:2px solid #5c4634;border-radius:50%;background:#edd08b;color:#5a3d2f;font-size:11px;line-height:1;font-weight:900;pointer-events:none;opacity:.72;box-shadow:0 1px 0 rgba(0,0,0,.15)}
+.road-obstacle-marker.driving{width:20px;height:20px;background:#e8a977;border-color:#7a4035;color:#4e2824;opacity:1}
 .map-exit-button{position:absolute;z-index:7;right:12px;bottom:10px;display:flex;flex-direction:column;align-items:flex-end;padding:9px 12px;border-radius:12px}
 .map-exit-button small{font-size:10px;opacity:.75}
 .map-node.road-blocked{filter:saturate(.55);opacity:.72}
