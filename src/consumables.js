@@ -1,5 +1,5 @@
-import { BALANCE, CARD_TYPES, CONSUMABLES, RESOURCES } from './data.js?v=0.2.4';
-import { clamp, pick, round } from './random.js?v=0.2.4';
+import { BALANCE, CARD_TYPES, CONSUMABLES, RESOURCES } from './data.js?v=0.2.7';
+import { clamp, pick, round } from './random.js?v=0.2.7';
 export const gaugeNames={bodyST:'体ST',headST:'頭ST',bodyHP:'体HP',headHP:'頭HP'};
 export const categoryNames={food:'食事 · 体ST',water:'飲み物 · 頭ST',bandage:'包帯 · 体HP',med:'医療箱 · 頭HP'};
 export const resourceWeight=key=>RESOURCES[key]?.carry??.15;
@@ -7,18 +7,33 @@ export const itemPlan=entry=>entry&&typeof entry==='object'&&!Array.isArray(entr
 export const reservedItems=(b,key)=>b.resolved?0:b.plan.filter(entry=>itemPlan(entry)&&entry.item===key).length;
 export function consumableCard(key) {
   if(!Object.hasOwn(CONSUMABLES,key))return null;const def=CONSUMABLES[key];
-  return {name:`${def.name}を使う`,kind:'recover',icon:def.icon,color:def.target.endsWith('ST')?'teal':'blue',bodyCost:0,headCost:0,consumable:key,desc:consumableDescription(key),bodyRecovery:def.target==='bodyST'?def.amount:0,headRecovery:def.target==='headST'?def.amount:0};
+  return {name:`${def.name}を使う`,kind:'recover',icon:def.icon,color:def.target.endsWith('ST')?'teal':'blue',bodyCost:0,headCost:0,consumable:key,desc:consumableDescription(key),bodyRecovery:0,headRecovery:0};
 }
 export const combatAction=key=>typeof key==='string'&&key.startsWith('supply:')?consumableCard(key.slice(7)):CARD_TYPES[key];
+const recoverEffects=d=>[{target:d.target,amount:d.amount},...(d.effects||[])];
 export function consumableDescription(key) {
   const d=CONSUMABLES[key];if(!d)return '';
-  return `${gaugeNames[d.target]}＋${d.amount}${d.hunger?` / 空腹−${d.hunger}`:''}${d.thirst?` / 渇き${d.thirst>0?'−':'＋'}${Math.abs(d.thirst)}`:''}`;
+  const parts=recoverEffects(d).map(x=>`${gaugeNames[x.target]}＋${x.amount}`);
+  if(d.buff)parts.push(`${d.buff.scope==='battle'?'次の戦闘':'次の探索'}：${{perception:'知覚',judgment:'判断',action:'行動',execution:'実効'}[d.buff.stat]}＋${d.buff.amount}`);
+  if(d.hunger)parts.push(`空腹−${d.hunger}`);
+  if(d.thirst)parts.push(`渇き${d.thirst>0?'−':'＋'}${Math.abs(d.thirst)}`);
+  return parts.join(' / ');
 }
 export function applyConsumable(state,actor,key) {
-  const d=CONSUMABLES[key],before=actor[d.target];
-  actor[d.target]=round(clamp(before+d.amount,0,actor.max?.[d.target]??BALANCE.player[d.target]));
+  const d=CONSUMABLES[key],recoveries=[];
+  for(const effect of recoverEffects(d)){
+    const before=actor[effect.target];
+    actor[effect.target]=round(clamp(before+effect.amount,0,actor.max?.[effect.target]??BALANCE.player[effect.target]));
+    recoveries.push({target:effect.target,amount:round(actor[effect.target]-before)});
+  }
   state.hunger=clamp(state.hunger-(d.hunger||0),0,100);state.thirst=clamp(state.thirst-(d.thirst||0),0,100);
-  return {target:d.target,amount:round(actor[d.target]-before)};
+  if(d.buff){
+    state.boosts||={exploration:{},battle:{}};
+    const scope=state.boosts[d.buff.scope]||(state.boosts[d.buff.scope]={});
+    scope[d.buff.stat]=(scope[d.buff.stat]||0)+d.buff.amount;
+  }
+  const primary=recoveries[0]||{target:d.target,amount:0};
+  return {...primary,recoveries,buff:d.buff||null,summary:recoveries.map(r=>`${gaugeNames[r.target]}＋${r.amount}`).join(' / ')};
 }
 export function queueBattleItem(state,key) {
   const b=state.combat;
