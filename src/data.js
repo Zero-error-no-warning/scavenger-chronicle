@@ -75,15 +75,21 @@ export const MODIFIERS = [
 ];
 export const CONSUMABLES = {
   food:{name:'保存食',category:'food',icon:'food',target:'bodyST',amount:6,hunger:35,carry:.15,text:'食べ慣れた、旅の食事。'},
-  dried:{name:'乾パン',category:'food',icon:'food',target:'bodyST',amount:4,hunger:25,thirst:-5,carry:.1,text:'軽くて携行しやすい。口が乾き、渇きが5増える。'},
-  ration:{name:'栄養バー',category:'food',icon:'food',target:'bodyST',amount:7,hunger:25,carry:.1,text:'小さな一口で、動く力を取り戻す。'},
-  canned:{name:'肉の缶詰',category:'food',icon:'food',target:'bodyST',amount:10,hunger:45,carry:.3,text:'重いが、しっかり腹にたまる。'},
+  dried:{name:'乾パン',category:'food',icon:'food',target:'bodyST',amount:4,hunger:25,thirst:-5,carry:.1,text:'軽いが口が乾く。'},
+  ration:{name:'栄養バー',category:'food',icon:'food',target:'bodyST',amount:7,hunger:25,carry:.1,buff:{scope:'exploration',stat:'judgment',amount:1},text:'糖分と栄養。次の探索では判断が少し冴える。'},
+  canned:{name:'肉の缶詰',category:'food',icon:'food',target:'bodyST',amount:10,hunger:45,carry:.3,effects:[{target:'bodyHP',amount:2}],text:'重いが、傷んだ身体にも効く。'},
+  soup:{name:'濃縮スープ',category:'food',icon:'food',target:'bodyST',amount:8,hunger:35,carry:.25,effects:[{target:'headST',amount:2}],text:'温かさが身体と頭の両方をほぐす。'},
+  chocolate:{name:'板チョコ',category:'food',icon:'food',target:'bodyST',amount:4,hunger:15,carry:.08,buff:{scope:'exploration',stat:'action',amount:1},text:'小さいが即効性がある。次の探索の行動＋1。'},
   water:{name:'飲料水',category:'water',icon:'water',target:'headST',amount:5,thirst:40,carry:.15,text:'頭を冷やして、考える力を取り戻す。'},
-  tea:{name:'ボトルのお茶',category:'water',icon:'water',target:'headST',amount:8,thirst:25,carry:.15,text:'集中力を取り戻す。渇きの回復は飲料水より少なめ。'},
+  tea:{name:'ボトルのお茶',category:'water',icon:'water',target:'headST',amount:8,thirst:25,carry:.15,buff:{scope:'exploration',stat:'perception',amount:1},text:'落ち着きを取り戻す。次の探索の知覚＋1。'},
+  sports:{name:'スポーツドリンク',category:'water',icon:'water',target:'headST',amount:6,thirst:35,carry:.2,effects:[{target:'bodyST',amount:3}],text:'水分と糖分を一緒に補給できる。'},
+  coffee:{name:'缶コーヒー',category:'water',icon:'water',target:'headST',amount:4,thirst:15,carry:.15,buff:{scope:'exploration',stat:'judgment',amount:1},text:'次の探索の判断＋1。渇きの回復は小さい。'},
   bandage:{name:'包帯',category:'bandage',icon:'cloth',target:'bodyHP',amount:6,carry:.1,text:'体の傷を手当てする。布1つから作れる。'},
   dressing:{name:'救急パッド',category:'bandage',icon:'cloth',target:'bodyHP',amount:12,carry:.15,text:'大きな傷を覆う、厚手の手当て用品。'},
-  med:{name:'医療箱',category:'med',icon:'medical',target:'headHP',amount:3,carry:.15,text:'頭の傷を手当てする。体HPは回復しない。'},
-  firstaid:{name:'高品質の医療箱',category:'med',icon:'medical',target:'headHP',amount:5,carry:.3,text:'重めの箱に、手当て用品が揃っている。'},
+  antiseptic:{name:'消毒セット',category:'bandage',icon:'cloth',target:'bodyHP',amount:5,carry:.15,effects:[{target:'headHP',amount:1}],text:'傷を洗って処置する。頭の傷にもわずかに効く。'},
+  med:{name:'医療箱',category:'med',icon:'medical',target:'headHP',amount:3,carry:.15,text:'頭の傷を手当てする。基本は頭HP用。'},
+  firstaid:{name:'高品質の医療箱',category:'med',icon:'medical',target:'headHP',amount:5,carry:.3,effects:[{target:'bodyHP',amount:6}],text:'全身をまとめて手当てできる。'},
+  painkiller:{name:'鎮痛剤',category:'med',icon:'medical',target:'headHP',amount:2,carry:.05,buff:{scope:'battle',stat:'action',amount:1},text:'次の戦闘の行動＋1。'},
 };
 export const RESOURCES = {
   scrap:{name:'スクラップ',icon:'gear'},cloth:{name:'布',icon:'cloth'},fuel:{name:'燃料',icon:'fuel'},
