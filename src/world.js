@@ -1,15 +1,15 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, ROAD_OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.6';
-import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.6';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.6';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.6';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.6';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, ROAD_OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.7';
+import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.7';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.7';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.7';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.7';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.6';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.7';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],roadObstacles:[],
     vitals:Object.fromEntries(['headHP','bodyHP','headST','bodyST'].map(key=>[key,BALANCE.player[key]])),pack:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:3,water:3,fuel:1,med:1,bandage:2},
-    baseResources:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:6,water:6,scrap:4,cloth:2,fuel:3,med:2,bandage:4,ration:2,tea:2,dressing:1,firstaid:1},inventory:[],stash:[],equipment:{},modules:[],hunger:0,thirst:0,exploration:null,combat:null,log:[],visits:0,kills:0,lootCount:0};
+    baseResources:{...Object.fromEntries(Object.keys(RESOURCES).map(key=>[key,0])),food:6,water:6,scrap:4,cloth:2,fuel:3,med:2,bandage:4},inventory:[],stash:[],equipment:{},modules:[],boosts:{exploration:{},battle:{}},hunger:0,thirst:0,exploration:null,combat:null,log:[],visits:0,kills:0,lootCount:0};
   const weapon=makeItem(s,'broom','sharp'),coat=makeItem(s,'workcoat',null),cap=makeItem(s,'cap',null),knife=makeItem(s,'knife','long');
   s.inventory.push(weapon,coat,cap,knife,makeItem(s,'crowbar',null));
   ensureDeck(s);
@@ -127,8 +127,9 @@ export function searchOption(s,index,handIndex){
   return {card:c,obstacle:o,execution,bonus,chance:c?.search?.[o.kind]!==undefined?successChance(execution,bonus,o.difficulty):0,risk:Math.max(encounterRisk(s,'search',s.hour,c?.noise||0),encounterRisk(s,'search',(s.hour+1)%24,c?.noise||0)),error};
 }
 function searchSession(s){
-  const a=stats(s),node=s.world[s.location];
-  s.exploration={location:s.location,spots:node.discovered.filter(i=>!node.used.includes(i)).map(index=>({index,name:location(s).spots[index]})),hand:drawShared(s,a.judgment),usedCards:[],remaining:a.action,stats:{...a},abilityActor:playerActor(s)};
+  const actor=playerActor(s),a=abilities(actor),node=s.world[s.location];
+  s.exploration={location:s.location,spots:node.discovered.filter(i=>!node.used.includes(i)).map(index=>({index,name:location(s).spots[index]})),hand:drawShared(s,a.judgment),usedCards:[],remaining:a.action,stats:{...a},abilityActor:actor};
+  if(s.boosts)s.boosts.exploration={};
 }
 export function survey(s){
   if(!free(s))return '今は周辺を調べられません。';
@@ -203,7 +204,7 @@ export function consume(s,key) {
   if(!Object.hasOwn(CONSUMABLES,key))return '回復アイテムが見つかりません。';
   if(!available(s,key))return '物資がありません。';
   spend(s,key,1);const recovery=applyConsumable(s,s.vitals,key);
-  log(s,`${CONSUMABLES[key].name}を使った。${consumableDescription(key)}（実際の回復＋${recovery.amount}）。`);return null;
+  log(s,`${CONSUMABLES[key].name}を使った。${consumableDescription(key)}${recovery.summary?`（${recovery.summary}）`:''}。`);return null;
 }
 export function craftBandage(s) {
   if(!free(s)||!atBase(s))return '包帯は拠点で作れます。';
