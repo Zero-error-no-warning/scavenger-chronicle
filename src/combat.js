@@ -57,8 +57,8 @@ export function prepareRound(state,b) {
   if(b.result)throw new Error('終わった戦闘の次のラウンドは開始できません。');
   b.resolved=false;
   b.round++;
-  // Rebalance at the next round; an already-saved round retains its limits.
-  b.player.base=playerActor(state,{battle:true}).base;
+  // Equipment cannot change during combat. Keep the battle-start base so a
+  // "next battle" consumable boost remains active for the whole encounter.
   const def=ENEMIES.find(x=>x.id===b.enemyId);if(def)b.enemy.base=enemyActor(def).base;
   b.limits=abilities(b.player);
   b.limitActor=structuredClone(b.player);
