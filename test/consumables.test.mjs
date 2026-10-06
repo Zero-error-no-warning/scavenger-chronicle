@@ -3,17 +3,18 @@ import assert from 'node:assert/strict';
 import { CONSUMABLES, RESOURCES, BALANCE } from '../src/data.js';
 import { newGame, consume, craftBandage, deposit, takeSupply, rest, redraw, searchSpot } from '../src/world.js';
 import { queueBattleItem, reservedItems, consumableDescription, lootResource, availableGroup, resourceWeight } from '../src/consumables.js';
-import { beginCombat, resolveRound, validatePlan, abilities, prepareRound } from '../src/combat.js';
+import { beginCombat, resolveRound, validatePlan, abilities, prepareRound, playerActor } from '../src/combat.js';
 import { releaseBattle, pileError } from '../src/deck.js';
 import { parseSave } from '../src/storage.js';
 import { renderResolution, cardRoute, replayView } from '../src/battle-presentation.js';
 import { actionHelp } from '../src/action-help.js';
 const saved=s=>parseSave(JSON.stringify(s));
 function battle(cards=[]){const s=newGame(9),b=beginCombat(s,'dog');releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=cards;b.plan=[];b.enemyPlan=[];b.enemyResolution=[];b.revealedEnemyIndices=[];b.distance=1;return {s,b};}
-for(const [key,d] of Object.entries(CONSUMABLES))test(`${d.name}は1行動で${d.target}だけを回復し、1個だけ消費する`,()=>{
+for(const [key,d] of Object.entries(CONSUMABLES))test(`${d.name}は定義された回復効果を1行動で適用し、1個だけ消費する`,()=>{
   const {s,b}=battle();for(const gauge of ['headHP','bodyHP','headST','bodyST'])b.player[gauge]=1;
   s.pack[key]=1;b.supplies={...s.pack};const before={...b.player},rng=s.rng,time=s.hour;assert.equal(queueBattleItem(s,key),null);assert.equal(b.plan.length,1);assert.equal(s.pack[key],1);assert.equal(validatePlan(b),null);
-  const [f]=resolveRound(s,b);for(const gauge of ['headHP','bodyHP','headST','bodyST'])assert.equal(b.player[gauge],gauge===d.target?Math.min(1+d.amount,b.player.max[gauge]):before[gauge]);
+  const effects=[{target:d.target,amount:d.amount},...(d.effects||[])],expected={...before};for(const effect of effects)expected[effect.target]=Math.min(expected[effect.target]+effect.amount,b.player.max[effect.target]);
+  const [f]=resolveRound(s,b);for(const gauge of ['headHP','bodyHP','headST','bodyST'])assert.equal(b.player[gauge],expected[gauge]);
   assert.equal(s.pack[key],0);assert.equal(b.supplies[key],0);assert.equal(s.rng,rng);assert.equal(s.hour,time);assert.equal(f.playerCard,`supply:${key}`);assert.equal(f.recoveries[0].target,d.target);assert.equal(cardRoute(f,'player'),'self');assert.match(renderResolution(f,'impact'),/heal-burst/);assert.ok(renderResolution(f,'impact').includes(d.name));assert.equal(pileError(s),null);assert.deepEqual(saved(s),s);
 });
 test('カードとアイテムは合計5枠、同じアイテムも所有数まで予約できる',()=>{
@@ -55,6 +56,15 @@ test('所持数を超えた予約・不正な予定・負の個数を拒否し�
 });
 test('探索中にも4種の対応ゲージを回復し、医療箱は体HPを回復しない',()=>{
   for(const key of ['food','water','bandage','med']){const s=newGame(9);s.vitals={headHP:1,bodyHP:1,headST:1,bodyST:1};const before={...s.vitals},d=CONSUMABLES[key],rng=s.rng;assert.equal(consume(s,key),null);for(const gauge of Object.keys(before))assert.equal(s.vitals[gauge],gauge===d.target?Math.min(1+d.amount,BALANCE.player[gauge]):1);assert.equal(s.rng,rng);saved(s);}
+});
+test('複数回復効果を同時適用できる',()=>{
+  const s=newGame(9);s.pack.canned=1;s.vitals.bodyST=1;s.vitals.bodyHP=1;assert.equal(consume(s,'canned'),null);assert.equal(s.vitals.bodyST,11);assert.equal(s.vitals.bodyHP,3);saved(s);
+});
+test('探索バフは次の探索開始時だけ能力に加算され、その後消える',()=>{
+  const s=newGame(9);s.pack.ration=1;assert.equal(consume(s,'ration'),null);assert.equal(playerActor(s).base.judgment,BALANCE.player.judgment+1);s.world[s.location].discovered=[0];assert.equal(redraw(s),null);assert.equal(s.exploration.abilityActor.base.judgment,BALANCE.player.judgment+1);assert.deepEqual(s.boosts.exploration,{});saved(s);
+});
+test('戦闘バフは次の戦闘全体に加算され、次戦には持ち越さない',()=>{
+  const s=newGame(9);s.pack.painkiller=1;assert.equal(consume(s,'painkiller'),null);const b=beginCombat(s,'dog');assert.equal(b.player.base.action,BALANCE.player.action+1);assert.deepEqual(s.boosts.battle,{});b.enemyPlan=[];b.enemyResolution=[];b.revealedEnemyIndices=[];b.plan=[];assert.equal(b.limits.action,BALANCE.player.action+1);saved(s);
 });
 test('バリエーションを預け入れ・持ち出しでき、種類ごとの重量上限を守る',()=>{
   const s=newGame(9);s.pack.canned=2;const total=s.pack.canned+s.baseResources.canned;assert.equal(deposit(s),null);assert.equal(s.pack.canned,0);assert.equal(s.baseResources.canned,total);assert.equal(takeSupply(s,'canned'),null);assert.equal(s.pack.canned,1);assert.equal(resourceWeight('canned'),.3);
