@@ -68,7 +68,7 @@ test('戦闘バフは次の戦闘全体に加算され、次戦には持ち越�
 });
 test('バリエーションを預け入れ・持ち出しでき、種類ごとの重量上限を守る',()=>{
   const s=newGame(9);s.pack.canned=2;const total=s.pack.canned+s.baseResources.canned;assert.equal(deposit(s),null);assert.equal(s.pack.canned,0);assert.equal(s.baseResources.canned,total);assert.equal(takeSupply(s,'canned'),null);assert.equal(s.pack.canned,1);assert.equal(resourceWeight('canned'),.3);
-  s.pack.scrap=65;const before=JSON.stringify(s);assert.match(takeSupply(s,'firstaid'),/重量/);assert.equal(JSON.stringify(s),before);
+  s.baseResources.firstaid=1;s.pack.scrap=65;const before=JSON.stringify(s);assert.match(takeSupply(s,'firstaid'),/重量/);assert.equal(JSON.stringify(s),before);
 });
 test('布から包帯を1時間で作り、持ち出して使える',()=>{
   const s=newGame(9),cloth=s.baseResources.cloth,bandages=s.baseResources.bandage;assert.equal(craftBandage(s),null);assert.equal(s.baseResources.cloth,cloth-1);assert.equal(s.baseResources.bandage,bandages+1);assert.equal(s.hour,9);assert.equal(takeSupply(s,'bandage'),null);s.vitals.bodyHP=10;assert.equal(consume(s,'bandage'),null);assert.equal(s.vitals.bodyHP,16);s.location=6;const before=JSON.stringify(s);assert.match(craftBandage(s),/拠点/);assert.equal(JSON.stringify(s),before);saved(s);
