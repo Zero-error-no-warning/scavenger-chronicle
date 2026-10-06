@@ -7,7 +7,8 @@ export const itemPlan=entry=>entry&&typeof entry==='object'&&!Array.isArray(entr
 export const reservedItems=(b,key)=>b.resolved?0:b.plan.filter(entry=>itemPlan(entry)&&entry.item===key).length;
 export function consumableCard(key) {
   if(!Object.hasOwn(CONSUMABLES,key))return null;const def=CONSUMABLES[key];
-  return {name:`${def.name}を使う`,kind:'recover',icon:def.icon,color:def.target.endsWith('ST')?'teal':'blue',bodyCost:0,headCost:0,consumable:key,desc:consumableDescription(key),bodyRecovery:0,headRecovery:0};
+  const effects=[{target:def.target,amount:def.amount},...(def.effects||[])];
+  return {name:`${def.name}を使う`,kind:'recover',icon:def.icon,color:def.target.endsWith('ST')?'teal':'blue',bodyCost:0,headCost:0,consumable:key,desc:consumableDescription(key),bodyRecovery:effects.filter(x=>x.target==='bodyST').reduce((n,x)=>n+x.amount,0),headRecovery:effects.filter(x=>x.target==='headST').reduce((n,x)=>n+x.amount,0)};
 }
 export const combatAction=key=>typeof key==='string'&&key.startsWith('supply:')?consumableCard(key.slice(7)):CARD_TYPES[key];
 const recoverEffects=d=>[{target:d.target,amount:d.amount},...(d.effects||[])];
