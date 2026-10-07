@@ -1,9 +1,9 @@
-import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES, ROAD_OBSTACLES } from './data.js?v=0.2.7';
-import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.7';
-import { shuffled } from './random.js?v=0.2.7';
-import { abilities, playerActor } from './combat.js?v=0.2.7';
-import { itemPlan } from './consumables.js?v=0.2.7';
-import { migrateWeaponRange } from './items.js?v=0.2.7';
+import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, WEAPONS, ARMOR, TOOLS, RESOURCES, MODIFIERS, ENEMIES, CONSUMABLES, ROAD_OBSTACLES } from './data.js?v=0.2.8';
+import { ensureDeck, deckError, pileError, cardPool, refId } from './deck.js?v=0.2.8';
+import { shuffled } from './random.js?v=0.2.8';
+import { abilities, playerActor } from './combat.js?v=0.2.8';
+import { itemPlan } from './consumables.js?v=0.2.8';
+import { migrateWeaponRange } from './items.js?v=0.2.8';
 const KEY='scavenger-chronicle-save-v1';
 const gaugeKeys=['headHP','bodyHP','headST','bodyST'];
 const statKeys=['perception','judgment','action','execution'];
