@@ -1,16 +1,16 @@
 import { BALANCE, CARD_TYPES, LOCATIONS, MODULES, RESOURCES, DECK_SIZE, ITEM_CARDS, CONSUMABLES } from './data.js?v=0.2.8';
-import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js?v=0.2.7';
-import * as world from './world.js?v=0.2.7';
-import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.7';
-import { icon, character, enemyArt, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.7';
-import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.7';
-import { renderMap, paintMap } from './map.js?v=0.2.7';
-import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.7';
-import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.7';
-import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, visibleEnemyIndices, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.7';
-import { cardPool, cardInfo, combatCard, isCombat, isExploration, refId, deckError } from './deck.js?v=0.2.7';
-import { categoryNames, gaugeNames, consumableDescription, reservedItems, queueBattleItem, resourceWeight, combatAction } from './consumables.js?v=0.2.7';
-import { renderLoot, lootSummary } from './loot-presentation.js?v=0.2.7';
+import { abilities, playerActor, beginCombat, resolveRound, prepareRound, validatePlan, inRange } from './combat.js?v=0.2.8';
+import * as world from './world.js?v=0.2.8';
+import { equipped, itemModifiers, carriedWeight } from './items.js?v=0.2.8';
+import { icon, character, enemyArt, scenery, weaponArt, armorArt, toolArt, spotArt, cardArt, escapeHTML as e } from './art.js?v=0.2.8';
+import { loadGame, saveGame, parseSave } from './storage.js?v=0.2.8';
+import { renderMap, paintMap } from './map.js?v=0.2.8';
+import { abilityHelp, abilityNames } from './ability-help.js?v=0.2.8';
+import { actionHelp, actionHelpActions } from './action-help.js?v=0.2.8';
+import { replayPhases, replayView, renderResolution, phaseNames, positionResolution, visibleEnemyIndices, enemyActionSummary, enemyAbilityInfo } from './battle-presentation.js?v=0.2.8';
+import { cardPool, cardInfo, combatCard, isCombat, isExploration, refId, deckError } from './deck.js?v=0.2.8';
+import { categoryNames, gaugeNames, consumableDescription, reservedItems, queueBattleItem, resourceWeight, combatAction } from './consumables.js?v=0.2.8';
+import { renderLoot, lootSummary } from './loot-presentation.js?v=0.2.8';
 const $=s=>document.querySelector(s);
 let state,tab='explore',driving=false,playing=false,frame=null,saveError='',toastTimer,sound=false,audio,mapOpen=false,replaySkip=false,wakeReplay=null,exportSaveURL=null,selectedSpot=null,selectedSearchCard=null,deckDraft=null;
 try {state=loadGame()||world.newGame();}catch(err){state=world.newGame();saveError=err.message;}
