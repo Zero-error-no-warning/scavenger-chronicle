@@ -15,7 +15,7 @@ export const CARD_TYPES = {
   guard: { name: '身を守る', kind: 'guard', icon: 'shield', bodyCost: 1, headCost: 0, desc: 'この行動枠で受けるHP・STダメージを半減。', color: 'blue' },
   breathe: { name: '息を整える', kind: 'recover', icon: 'lung', bodyCost: 0, headCost: 0, bodyRecovery: 9, headRecovery: 2, desc: '体ST＋９、頭ST＋２。', color: 'teal' },
   focus: { name: '頭を冷やす', kind: 'recover', icon: 'eye', bodyCost: 0, headCost: 0, bodyRecovery: 2, headRecovery: 7, desc: '頭ST＋７、体ST＋２。', color: 'blue' },
-  escape: { name: '離脱する', kind: 'escape', icon: 'exit', bodyCost: 3, headCost: 1, desc: '距離５以上で戦闘から離脱。', color: 'gold' },
+  escape: { name: '離脱する', kind: 'escape', icon: 'exit', bodyCost: 3, headCost: 1, move: 2, escapeDistance: 6, desc: '距離を２広げる。移動後に距離６なら戦闘から離脱。', color: 'gold' },
 };
 Object.assign(CARD_TYPES, {
   rummage:{name:'周辺を探す',combatName:'足場を探して後退',kind:'move',move:1,bodyCost:1,headCost:1,color:'gold',search:{open:1,salvage:0,overgrown:0,high:-2},desc:'開いた棚・残骸・草むらを探す。戦闘では距離を1広げる。'},
