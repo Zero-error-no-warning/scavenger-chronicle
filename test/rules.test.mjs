@@ -59,9 +59,11 @@ test('同じ行動枠の攻撃は相打ちを許す',()=>{
   const {s,b}=battle(['strike'],['strike'],1);b.player.headHP=b.enemy.headHP=.1;b.player.bodyHP=b.enemy.bodyHP=0;
   resolveRound(s,b);assert.equal(b.result,'mutual');assert.equal(b.player.headHP,0);assert.equal(b.enemy.headHP,0);
 });
-test('離脱は移動後の距離５以上で成功する',()=>{
-  const {s,b}=battle(['retreat','escape'],[],4);resolveRound(s,b);assert.equal(b.result,'escaped');
-  const short=battle(['escape'],[],4);resolveRound(short.s,short.b);assert.equal(short.b.result,null);
+test('離脱は距離を２広げ、移動後に距離６なら成功する',()=>{
+  let x=battle(['escape'],[],3);resolveRound(x.s,x.b);assert.equal(x.b.distance,5);assert.equal(x.b.result,null);
+  x=battle(['escape'],[],4);resolveRound(x.s,x.b);assert.equal(x.b.distance,6);assert.equal(x.b.result,'escaped');
+  x=battle(['escape'],['advance'],4);resolveRound(x.s,x.b);assert.equal(x.b.distance,5);assert.equal(x.b.result,null);
+  x=battle(['escape'],['advance'],5);resolveRound(x.s,x.b);assert.equal(x.b.distance,6);assert.equal(x.b.result,'escaped');
 });
 test('コスト不足の計画は実行前に拒否し、回復を挟めば実行できる',()=>{
   const {s,b}=battle(['heavy'],[],1);b.player.bodyST=1;assert.ok(validatePlan(b));assert.throws(()=>resolveRound(s,b));
