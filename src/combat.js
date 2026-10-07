@@ -1,4 +1,4 @@
-import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.7';
+import { BALANCE, CARD_TYPES, ENEMIES } from './data.js?v=0.2.8';
 import { itemPlan, applyConsumable, gaugeNames } from './consumables.js?v=0.2.7';
 import { equipped } from './items.js?v=0.2.7';
 import { clamp, pick, random, round, shuffled } from './random.js?v=0.2.7';
@@ -196,9 +196,9 @@ export function resolveRound(state,b,{pass=false}={}) {
     if(b.player.headHP<=0)b.result=b.enemy.headHP<=0?'mutual':'defeat';
     else if(b.enemy.headHP<=0)b.result='victory';
     else if(commands.some(x=>x.side==='player'&&x.card.kind==='escape')) {
-      const threshold=Math.min(...commands.filter(x=>x.side==='player'&&x.card.kind==='escape').map(x=>x.card.escapeDistance??5));
+      const threshold=Math.min(...commands.filter(x=>x.side==='player'&&x.card.kind==='escape').map(x=>x.card.escapeDistance??BALANCE.maxDistance));
       if(b.distance>=threshold) {b.result='escaped';messages.push('背を向け、走り抜けた。');}
-      else messages.push(`離脱には距離${threshold}以上が必要。`);
+      else messages.push(`距離${b.distance}。離脱には距離${threshold}まで離れる必要がある。`);
     }
     b.enemyResolution ||= b.enemyPlan.map(()=>'pending');
     if(slot<b.enemyPlan.length)b.enemyResolution[slot]=status('enemy');
