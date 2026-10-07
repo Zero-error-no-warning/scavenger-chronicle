@@ -1,5 +1,5 @@
-import { BALANCE, CARD_TYPES, CONSUMABLES, RESOURCES } from './data.js?v=0.2.7';
-import { clamp, pick, round } from './random.js?v=0.2.7';
+import { BALANCE, CARD_TYPES, CONSUMABLES, RESOURCES } from './data.js?v=0.2.8';
+import { clamp, pick, round } from './random.js?v=0.2.8';
 export const gaugeNames={bodyST:'体ST',headST:'頭ST',bodyHP:'体HP',headHP:'頭HP'};
 export const categoryNames={food:'食事 · 体ST',water:'飲み物 · 頭ST',bandage:'包帯 · 体HP',med:'医療箱 · 頭HP'};
 export const resourceWeight=key=>RESOURCES[key]?.carry??.15;
