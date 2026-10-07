@@ -1,6 +1,6 @@
-import { combatAction, gaugeNames } from './consumables.js?v=0.2.7';
-import { abilities } from './combat.js?v=0.2.7';
-import { cardArt, escapeHTML as e } from './art.js?v=0.2.7';
+import { combatAction, gaugeNames } from './consumables.js?v=0.2.8';
+import { abilities } from './combat.js?v=0.2.8';
+import { cardArt, escapeHTML as e } from './art.js?v=0.2.8';
 
 export function replayPhases(frame,{reduced=false}={}) {
   if(reduced)return [{name:'impact',duration:240}];
