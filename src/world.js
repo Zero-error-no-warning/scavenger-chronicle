@@ -1,10 +1,10 @@
-import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, ROAD_OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.7';
-import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.7';
-import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.7';
-import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.7';
-import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.7';
+import { BALANCE, LOCATIONS, MODULES, CARD_TYPES, OBSTACLES, ROAD_OBSTACLES, RESOURCES, CONSUMABLES } from './data.js?v=0.2.8';
+import { resourceWeight, applyConsumable, lootResource, availableGroup, spendGroup, consumableDescription } from './consumables.js?v=0.2.8';
+import { random, pick, shuffled, clamp, round } from './random.js?v=0.2.8';
+import { makeItem, generateItem, equipped, carriedWeight } from './items.js?v=0.2.8';
+import { abilities, playerActor, beginCombat } from './combat.js?v=0.2.8';
 
-import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.7';
+import { ensureDeck, drawShared, discardRefs, releaseExploration, releaseBattle, syncDeck, resetPile, deckError, cardInfo } from './deck.js?v=0.2.8';
 
 export function newGame(seed=Date.now()) {
   const s={version:BALANCE.saveVersion,rng:(seed>>>0)||123456789,serial:0,hour:8,day:1,location:7,baseLocation:7,region:1,world:[],roadObstacles:[],
