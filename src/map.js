@@ -1,6 +1,6 @@
-import { LOCATIONS } from './data.js?v=0.2.7';
-import { neighbors, roadObstacle, atMapEdge } from './world.js?v=0.2.7';
-import { escapeHTML as e, landmarkArt } from './art.js?v=0.2.7';
+import { LOCATIONS } from './data.js?v=0.2.8';
+import { neighbors, roadObstacle, atMapEdge } from './world.js?v=0.2.8';
+import { escapeHTML as e, landmarkArt } from './art.js?v=0.2.8';
 
 // Decoration has its own deterministic seed. Rendering never consumes gameplay RNG.
 function hash(text) {let n=2166136261;for(const c of text)n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;}
