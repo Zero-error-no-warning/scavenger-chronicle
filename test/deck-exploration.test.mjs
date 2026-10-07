@@ -124,10 +124,10 @@ test('探索カードなしの18枚も組めて、基本探索で開いた物資
   assert.equal(deckError(s,refs),null);assert.equal(commitDeck(s,refs),null);
   s.world[7].discovered=[2];s.rng=1000000;redraw(s);assert.ok(s.exploration.hand.every(r=>!cardInfo(r,s.inventory).search));assert.equal(searchOption(s,2,null).error,null);assert.equal(pileError(s),null);
 });
-test('鍵開けカードは戦闘で距離6の離脱に使え、通常の離脱は距離5で使える',()=>{
-  for(const [key,distance,escaped] of [['unlock',5,false],['unlock',6,true],['escape',5,true]]){
+test('鍵開けは距離6で離脱し、通常離脱は２後退して距離6なら成功する',()=>{
+  for(const [key,distance,escaped,after] of [['unlock',5,false,5],['unlock',6,true,6],['escape',3,false,5],['escape',4,true,6]]){
     const s=fresh(),b=beginCombat(s,'dog');releaseBattle(s);b.sharedDeck=false;b.handRefs=[];b.hand=[key];b.plan=[0];b.enemyPlan=[];b.enemyResolution=[];b.revealedEnemyIndices=[];b.distance=distance;
-    assert.equal(validatePlan(b),null);resolveRound(s,b);assert.equal(b.result==='escaped',escaped);
+    assert.equal(validatePlan(b),null);resolveRound(s,b);assert.equal(b.distance,after);assert.equal(b.result==='escaped',escaped);
   }
 });
 
